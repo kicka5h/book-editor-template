@@ -1,0 +1,145 @@
+name: Generate Compiled Book PDF
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Chapters/**/*.md'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Chapters/**/*.md'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  generate-book-pdf:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Pandoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc texlive-latex-base texlive-latex-extra texlive-fonts-recommended
+      
+      - name: Collect latest chapter versions
+        run: |
+          python3 <<'EOF'
+          import os
+          import re
+          from pathlib import Path
+          
+          def parse_version(version_str):
+              """Parse version string like 'v0.0.1' into tuple"""
+              match = re.match(r'v?(\d+)\.(\d+)\.(\d+)', version_str)
+              if not match:
+                  return None
+              return tuple(map(int, match.groups()))
+          
+          chapters_dir = Path('Chapters')
+          latest_chapters = []
+          
+          # Find all chapter directories
+          chapter_dirs = sorted(
+              [d for d in chapters_dir.iterdir() if d.is_dir() and d.name.lower().startswith('chapter')],
+              key=lambda x: int(re.search(r'\d+', x.name).group())
+          )
+          
+          for chapter_dir in chapter_dirs:
+              # Find all version directories
+              version_dirs = []
+              for version_dir in chapter_dir.iterdir():
+                  if version_dir.is_dir() and version_dir.name.startswith('v'):
+                      version = parse_version(version_dir.name)
+                      if version:
+                          version_dirs.append((version, version_dir))
+              
+              if not version_dirs:
+                  print(f"Warning: No versions found for {chapter_dir.name}")
+                  continue
+              
+              # Get latest version
+              version_dirs.sort(key=lambda x: x[0], reverse=True)
+              latest_version_dir = version_dirs[0][1]
+              
+              # Find markdown file in latest version
+              md_files = list(latest_version_dir.glob('*.md'))
+              if md_files:
+                  latest_chapters.append(md_files[0])
+                  print(f"Found: {chapter_dir.name} {latest_version_dir.name} - {md_files[0].name}")
+              else:
+                  print(f"Warning: No .md file in {latest_version_dir}")
+          
+          # Write list of files to combine
+          with open('chapters_to_combine.txt', 'w') as f:
+              for chapter in latest_chapters:
+                  f.write(f"{chapter}\n")
+          
+          print(f"\nTotal chapters to combine: {len(latest_chapters)}")
+          EOF
+      
+      - name: Generate combined PDF
+        run: |
+          # Read the list of chapters
+          mapfile -t chapters < chapters_to_combine.txt
+          
+          # Get the current date for the filename
+          DATE=$(date +%Y-%m-%d)
+          OUTPUT_FILE="In_the_Presence_of_Power_Most_Foul_${DATE}.pdf"
+          
+          echo "Generating combined PDF: $OUTPUT_FILE"
+          echo "Combining ${#chapters[@]} chapters..."
+          
+          # Convert all chapters into a single PDF using pandoc
+          pandoc "${chapters[@]}" \
+            -o "$OUTPUT_FILE" \
+            --pdf-engine=pdflatex \
+            -V geometry:margin=1in \
+            -V fontsize=12pt \
+            -V documentclass=book \
+            -V papersize=letter \
+            --toc \
+            --toc-depth=2 \
+            -V title="In the Presence of Power Most Foul" \
+            -V author="Lex Elana" \
+            -V date="$DATE" \
+            --highlight-style=tango \
+            --number-sections
+          
+          echo "PDF generated successfully: $OUTPUT_FILE"
+      
+      - name: Upload PDF as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-pdf-${{ github.sha }}
+          path: "*.pdf"
+          retention-days: 90
+      
+      # - name: Commit PDF to repository (optional)
+      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      #   run: |
+      #     git config --local user.email "github-actions[bot]@users.noreply.github.com"
+      #     git config --local user.name "github-actions[bot]"
+          
+      #     # Move PDF to a dedicated folder
+      #     mkdir -p builds
+      #     mv *.pdf builds/
+          
+      #     git add builds/
+          
+      #     # Only commit if there are changes
+      #     if git diff --staged --quiet; then
+      #       echo "No changes to commit"
+      #     else
+      #       git commit -m "Auto-generate book PDF from latest chapter versions [skip ci]"
+      #       git push
+      #     fi
