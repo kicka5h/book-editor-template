@@ -462,18 +462,159 @@ def main(page: ft.Page) -> None:
     repo_path_holder = {"value": get_repo_path(config)}
     chapter_list = ft.Column([], scroll=ft.ScrollMode.AUTO, expand=True, spacing=0)
 
-    # Borderless, full-height prose editor
-    editor = ft.TextField(
+    # Dual-mode state: "preview" shows ft.Markdown, "edit" shows ft.TextField
+    editor_mode = {"value": "preview"}  # "preview" | "edit"
+    # Raw markdown content is the source of truth
+    md_content = {"value": ""}
+
+    # ── Markdown style sheet — Anthropic palette ─────────────────────────────
+    _md_body_style  = ft.TextStyle(color=_TEXT,       size=15, font_family="Georgia")
+    _md_code_style  = ft.TextStyle(color="#C9D1D9",   size=13, font_family="monospace")
+    _md_muted_style = ft.TextStyle(color=_TEXT_MUTED, size=15)
+
+    _md_stylesheet = ft.MarkdownStyleSheet(
+        p_text_style        = _md_body_style,
+        p_padding           = ft.padding.symmetric(vertical=4),
+        h1_text_style       = ft.TextStyle(color=_TEXT, size=26, weight=ft.FontWeight.BOLD),
+        h1_padding          = ft.padding.symmetric(vertical=8),
+        h2_text_style       = ft.TextStyle(color=_TEXT, size=21, weight=ft.FontWeight.BOLD),
+        h2_padding          = ft.padding.symmetric(vertical=6),
+        h3_text_style       = ft.TextStyle(color=_TEXT, size=17, weight=ft.FontWeight.W_600),
+        h3_padding          = ft.padding.symmetric(vertical=5),
+        em_text_style       = ft.TextStyle(color=_TEXT, size=15, italic=True),
+        strong_text_style   = ft.TextStyle(color=_TEXT, size=15, weight=ft.FontWeight.BOLD),
+        del_text_style      = ft.TextStyle(color=_TEXT_MUTED, size=15,
+                                           decoration=ft.TextDecoration.LINE_THROUGH),
+        blockquote_text_style = ft.TextStyle(color=_TEXT_MUTED, size=15, italic=True),
+        blockquote_padding  = ft.padding.only(left=16, top=8, bottom=8, right=8),
+        blockquote_decoration = ft.BoxDecoration(
+            border=ft.border.only(left=ft.BorderSide(3, _ACCENT)),
+            color=_SURFACE,
+        ),
+        code_text_style     = _md_code_style,
+        codeblock_padding   = ft.padding.all(12),
+        codeblock_decoration = ft.BoxDecoration(
+            color=_SURFACE2,
+            border_radius=ft.border_radius.all(6),
+        ),
+        list_bullet_text_style = ft.TextStyle(color=_ACCENT, size=15),
+        block_spacing       = 8,
+    )
+
+    # ── Preview widget (ft.Markdown) ─────────────────────────────────────────
+    md_preview = ft.Markdown(
+        value="",
+        extension_set=ft.MarkdownExtensionSet.GITHUB_FLAVORED,
+        selectable=True,
+        fit_content=True,
+        md_style_sheet=_md_stylesheet,
+        code_theme=ft.MarkdownCodeTheme.TOMORROW_NIGHT,
+    )
+
+    # Invisible click catcher layered over the preview; tap → switch to edit
+    def _enter_edit_mode(e=None):
+        if editor_mode["value"] == "edit":
+            return
+        editor_mode["value"] = "edit"
+        raw_editor.value = md_content["value"]
+        preview_layer.visible = False
+        edit_layer.visible = True
+        page.update()
+        raw_editor.focus()
+
+    def _exit_edit_mode(e=None):
+        if editor_mode["value"] != "edit":
+            return
+        # Flush current text → source of truth
+        new_text = raw_editor.value or ""
+        md_content["value"] = new_text
+        md_preview.value = new_text
+        editor_mode["value"] = "preview"
+        preview_layer.visible = True
+        edit_layer.visible = False
+        # Mark dirty and update word count (batch into single page.update)
+        _mark_dirty(True)
+        _update_word_count_internal()
+        page.update()
+
+    # Preview layer: scrollable Markdown + transparent tap target on top
+    preview_layer = ft.Container(
+        content=ft.Column(
+            [
+                ft.GestureDetector(
+                    content=ft.Container(
+                        content=ft.Column(
+                            [
+                                ft.Container(
+                                    md_preview,
+                                    padding=ft.padding.symmetric(horizontal=48, vertical=32),
+                                    expand=True,
+                                ),
+                                # Clickable empty space below text to enter edit mode
+                                ft.GestureDetector(
+                                    content=ft.Container(height=200, expand=False),
+                                    on_tap=_enter_edit_mode,
+                                ),
+                            ],
+                            expand=True,
+                            spacing=0,
+                        ),
+                        bgcolor=_BG,
+                        expand=True,
+                    ),
+                    on_tap=_enter_edit_mode,
+                )
+            ],
+            scroll=ft.ScrollMode.AUTO,
+            expand=True,
+            spacing=0,
+        ),
+        expand=True,
+        bgcolor=_BG,
+        visible=True,
+    )
+
+    # ── Raw editor widget (ft.TextField) ─────────────────────────────────────
+    def _on_raw_editor_change(e):
+        md_content["value"] = raw_editor.value or ""
+        _mark_dirty(True)
+        _update_word_count_internal()
+        page.update()
+
+    def _on_raw_editor_blur(e):
+        _exit_edit_mode()
+
+    raw_editor = ft.TextField(
         multiline=True,
         min_lines=30,
         expand=True,
-        text_style=ft.TextStyle(color=_TEXT, font_family="monospace", size=15),
+        text_style=ft.TextStyle(color=_TEXT, font_family="monospace", size=14),
         cursor_color=_ACCENT,
         bgcolor=_BG,
         border_color="transparent",
         focused_border_color="transparent",
         content_padding=ft.padding.symmetric(horizontal=48, vertical=32),
-        on_change=lambda e: _set_dirty(True),
+        on_change=_on_raw_editor_change,
+        on_blur=_on_raw_editor_blur,
+    )
+
+    # Edit layer: raw TextField in scrollable container
+    edit_layer = ft.Container(
+        content=ft.Column(
+            [raw_editor],
+            scroll=ft.ScrollMode.AUTO,
+            expand=True,
+            spacing=0,
+        ),
+        expand=True,
+        bgcolor=_BG,
+        visible=False,
+    )
+
+    # Editor area: stack preview + edit layers
+    editor_area = ft.Stack(
+        [preview_layer, edit_layer],
+        expand=True,
     )
 
     # Status bar state
@@ -481,16 +622,23 @@ def main(page: ft.Page) -> None:
     status_words = ft.Text("", size=12, color=_TEXT_MUTED)
     save_indicator = ft.Text("", size=12, color=_TEXT_MUTED)
 
-    def _set_dirty(dirty: bool):
+    def _mark_dirty(dirty: bool):
+        """Update dirty state and save indicator without calling page.update()."""
         editor_dirty["value"] = dirty
         save_indicator.value = "●  unsaved" if dirty else ""
         save_indicator.color = _ACCENT if dirty else _TEXT_MUTED
+
+    def _set_dirty(dirty: bool):
+        _mark_dirty(dirty)
         page.update()
 
-    def _update_word_count():
-        text = editor.value or ""
+    def _update_word_count_internal():
+        text = md_content["value"] or ""
         words = len(text.split()) if text.strip() else 0
         status_words.value = f"{words:,} words"
+
+    def _update_word_count():
+        _update_word_count_internal()
         page.update()
 
     def refresh_chapter_list():
@@ -527,16 +675,23 @@ def main(page: ft.Page) -> None:
     def load_chapter_file(md_path: Path):
         current_md_path["value"] = md_path
         try:
-            editor.value = md_path.read_text(encoding="utf-8")
+            text = md_path.read_text(encoding="utf-8")
         except Exception:
-            editor.value = ""
+            text = ""
+        md_content["value"] = text
+        md_preview.value = text
+        raw_editor.value = text
+        # Always start in preview mode when opening a chapter
+        editor_mode["value"] = "preview"
+        preview_layer.visible = True
+        edit_layer.visible = False
         # Extract chapter number for status bar
         m = re.search(r"[Cc]hapter\s+(\d+)", str(md_path))
         status_chapter.value = f"Chapter {m.group(1)}" if m else md_path.stem
-        _set_dirty(False)
-        _update_word_count()
+        _mark_dirty(False)
+        _update_word_count_internal()
+        # refresh_chapter_list will call page.update() at the end
         refresh_chapter_list()
-        page.update()
 
     def save_current(e=None):
         path = current_md_path["value"]
@@ -544,8 +699,11 @@ def main(page: ft.Page) -> None:
             page.open(ft.SnackBar(ft.Text("No chapter open.")))
             page.update()
             return
+        # If currently editing, flush the raw editor text first
+        if editor_mode["value"] == "edit":
+            md_content["value"] = raw_editor.value or ""
         try:
-            Path(path).write_text(editor.value or "", encoding="utf-8")
+            Path(path).write_text(md_content["value"], encoding="utf-8")
         except Exception as ex:
             page.open(ft.SnackBar(ft.Text(f"Save failed: {ex}")))
             page.update()
@@ -675,10 +833,21 @@ def main(page: ft.Page) -> None:
             page.open(ft.SnackBar(ft.Text("Open a chapter first.")))
             page.update()
             return
+        # Flush any in-progress edit before formatting
+        if editor_mode["value"] == "edit":
+            md_content["value"] = raw_editor.value or ""
+            Path(path).write_text(md_content["value"], encoding="utf-8")
         try:
             changed = process_file(Path(path), in_place=True)
             if changed:
-                editor.value = Path(path).read_text(encoding="utf-8")
+                text = Path(path).read_text(encoding="utf-8")
+                md_content["value"] = text
+                md_preview.value = text
+                raw_editor.value = text
+                # Switch back to preview after format
+                editor_mode["value"] = "preview"
+                preview_layer.visible = True
+                edit_layer.visible = False
                 page.open(ft.SnackBar(ft.Text("Formatted.")))
             else:
                 page.open(ft.SnackBar(ft.Text("Already formatted.")))
@@ -847,7 +1016,7 @@ def main(page: ft.Page) -> None:
             ft.Row(
                 [
                     sidebar,
-                    ft.Container(editor, expand=True, bgcolor=_BG),
+                    editor_area,
                 ],
                 expand=True,
                 spacing=0,
