@@ -172,14 +172,18 @@ def main(page: ft.Page) -> None:
         page.update()
 
         def _load():
-            repos = load_repos()
-            repo_progress.visible = False
-            repos_dropdown.options = [
-                ft.dropdown.Option(f"{owner}/{name}", key=f"{owner}|{name}|{url}")
-                for owner, name, url in repos
-            ]
-            if not repos_dropdown.options:
-                repo_error.value = "No repositories found."
+            try:
+                repos = load_repos()
+                repo_progress.visible = False
+                repos_dropdown.options = [
+                    ft.dropdown.Option(key=f"{owner}|{name}|{url}", text=f"{owner}/{name}")
+                    for owner, name, url in repos
+                ]
+                if not repos_dropdown.options:
+                    repo_error.value = "No repositories found."
+            except Exception as ex:
+                repo_progress.visible = False
+                repo_error.value = f"Failed to load repositories: {ex}"
             page.update()
 
         threading.Thread(target=_load, daemon=True).start()
