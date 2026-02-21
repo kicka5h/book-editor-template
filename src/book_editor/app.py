@@ -264,6 +264,11 @@ def main(page: ft.Page) -> None:
         page.open(dlg)
         page.update()
 
+    def sign_out(e):
+        save_config_full({})
+        token_holder["value"] = ""
+        page.go("/signin")
+
     repo_content = ft.Column(
         [
             ft.Text("Select repository", size=24, weight=ft.FontWeight.BOLD),
@@ -279,6 +284,14 @@ def main(page: ft.Page) -> None:
             ),
             ft.Container(height=8),
             repo_error,
+            ft.Container(expand=True),
+            ft.Divider(),
+            ft.TextButton(
+                "Sign out",
+                icon=ft.Icons.LOGOUT,
+                on_click=sign_out,
+                style=ft.ButtonStyle(color=ft.Colors.ERROR),
+            ),
         ],
         scroll=ft.ScrollMode.AUTO,
         expand=True,
