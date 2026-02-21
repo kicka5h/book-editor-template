@@ -1,0 +1,199 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write   # required to create GitHub Releases and upload assets
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Resolve the release version from pyproject.toml
+  # ─────────────────────────────────────────────
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      tag: ${{ steps.get_version.outputs.tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from pyproject.toml
+        id: get_version
+        run: |
+          VERSION=$(python - <<'EOF'
+          import tomllib, pathlib
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          print(data["project"]["version"])
+          EOF
+          )
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION"    >> "$GITHUB_OUTPUT"
+
+      - name: Abort if this tag already has a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ steps.get_version.outputs.version }}"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists — skipping CD run."
+            echo "If you want a new release, bump the version in pyproject.toml."
+            exit 1
+          fi
+
+  # ─────────────────────────────────────────────
+  # Build the packaged app on each platform
+  # ─────────────────────────────────────────────
+  build:
+    name: Build (${{ matrix.platform_name }})
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform_name: Windows
+            artifact_name: BookEditor-Windows
+          - os: macos-latest
+            platform_name: macOS
+            artifact_name: BookEditor-macOS
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e .
+          pip install flet
+
+      - name: Build app with flet pack
+        run: >
+          flet pack src/book_editor/__main__.py
+          --name "BookEditor"
+          --product-name "Book Editor"
+          --file-description "A desktop app for writing books with GitHub version control"
+
+      # ── Windows: zip dist folder ──
+      - name: Package Windows build
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist\BookEditor\* `
+            -DestinationPath dist\BookEditor-Windows-${{ needs.version.outputs.version }}.zip
+
+      # ── macOS: create a .dmg installer ──
+      - name: Install create-dmg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install create-dmg
+
+      - name: Package macOS build as DMG
+        if: runner.os == 'macOS'
+        run: |
+          ICON_PATH="dist/BookEditor.app/Contents/Resources/icon.icns"
+          ICON_FLAG=""
+          if [ -f "$ICON_PATH" ]; then
+            ICON_FLAG="--volicon $ICON_PATH"
+          fi
+
+          create-dmg \
+            --volname "Book Editor" \
+            $ICON_FLAG \
+            --window-pos 200 120 \
+            --window-size 660 400 \
+            --icon-size 128 \
+            --icon "BookEditor.app" 180 170 \
+            --hide-extension "BookEditor.app" \
+            --app-drop-link 480 170 \
+            "dist/BookEditor-macOS-${{ needs.version.outputs.version }}.dmg" \
+            "dist/BookEditor.app" \
+          || true
+
+          # Fallback to zip if DMG creation failed
+          if [ ! -f "dist/BookEditor-macOS-${{ needs.version.outputs.version }}.dmg" ]; then
+            cd dist && zip -r \
+              "BookEditor-macOS-${{ needs.version.outputs.version }}.zip" \
+              BookEditor.app
+          fi
+
+      - name: Upload Windows artifact
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/BookEditor-Windows-${{ needs.version.outputs.version }}.zip
+          retention-days: 7
+
+      - name: Upload macOS artifact
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            dist/BookEditor-macOS-${{ needs.version.outputs.version }}.dmg
+            dist/BookEditor-macOS-${{ needs.version.outputs.version }}.zip
+          retention-days: 7
+
+  # ─────────────────────────────────────────────
+  # Create the GitHub Release and attach assets
+  # ─────────────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Collect release assets
+        run: |
+          mkdir -p release-assets
+          find artifacts/ -type f \( -name "*.zip" -o -name "*.dmg" \) \
+            -exec cp {} release-assets/ \;
+          echo "Assets to publish:"
+          ls -lh release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: "Book Editor ${{ needs.version.outputs.tag }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## Book Editor ${{ needs.version.outputs.tag }}
+
+            ### Installation
+
+            **macOS**
+            1. Download `BookEditor-macOS-${{ needs.version.outputs.version }}.dmg`
+            2. Open the DMG and drag **Book Editor** into your Applications folder
+            3. On first launch, right-click → Open if macOS warns about an unverified developer
+
+            **Windows**
+            1. Download `BookEditor-Windows-${{ needs.version.outputs.version }}.zip`
+            2. Extract to a folder of your choice (e.g. `C:\Program Files\BookEditor`)
+            3. Run `BookEditor.exe`
+
+            ### Requirements
+            - A GitHub Personal Access Token with `repo` scope (entered on first launch)
+            - [Pandoc](https://pandoc.org/installing.html) + a LaTeX engine for PDF generation
+          files: release-assets/*
