@@ -62,13 +62,23 @@ jobs:
           pip install -e .
           pip install flet pyinstaller
 
-      - name: Verify flet pack runs (dry run)
+      - name: Verify flet pack runs (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: >
           flet pack src/book_editor/__main__.py
           --name "BookEditor"
           --product-name "Book Editor"
           --file-description "A desktop app for writing books with GitHub version control"
           -D
+
+      - name: Verify flet pack runs (macOS)
+        if: runner.os == 'macOS'
+        run: >
+          flet pack src/book_editor/__main__.py
+          --name "BookEditor"
+          --product-name "Book Editor"
+          --file-description "A desktop app for writing books with GitHub version control"
 
       - name: Confirm binary was produced (Windows)
         if: runner.os == 'Windows'

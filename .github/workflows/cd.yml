@@ -87,13 +87,23 @@ jobs:
           pip install -e .
           pip install flet pyinstaller
 
-      - name: Build app with flet pack
+      - name: Build app with flet pack (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: >
           flet pack src/book_editor/__main__.py
           --name "BookEditor"
           --product-name "Book Editor"
           --file-description "A desktop app for writing books with GitHub version control"
           -D
+
+      - name: Build app with flet pack (macOS)
+        if: runner.os == 'macOS'
+        run: >
+          flet pack src/book_editor/__main__.py
+          --name "BookEditor"
+          --product-name "Book Editor"
+          --file-description "A desktop app for writing books with GitHub version control"
 
       # ── Windows: build NSIS installer ──
       - name: Install NSIS (Windows)
