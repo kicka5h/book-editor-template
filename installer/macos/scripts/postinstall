@@ -1,0 +1,83 @@
+#!/bin/bash
+# postinstall — runs as root after the PKG payload is extracted
+# Installs Homebrew (if absent), then installs pandoc, basictex, and git via brew
+set -euo pipefail
+
+# ── Locate or install Homebrew ────────────────────────────────────────────────
+BREW_BIN=""
+for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  if [ -x "$candidate" ]; then
+    BREW_BIN="$candidate"
+    break
+  fi
+done
+
+# Determine the real (non-root) console user for brew calls
+REAL_USER=$(stat -f '%Su' /dev/console 2>/dev/null || true)
+if [ -z "$REAL_USER" ] || [ "$REAL_USER" = "root" ]; then
+  REAL_USER=""
+fi
+
+run_as_user() {
+  if [ -n "$REAL_USER" ]; then
+    sudo -u "$REAL_USER" "$@"
+  else
+    "$@"
+  fi
+}
+
+if [ -z "$BREW_BIN" ]; then
+  echo "Homebrew not found — installing..."
+  if [ -z "$REAL_USER" ]; then
+    echo "WARNING: Cannot determine logged-in user; skipping Homebrew install."
+    echo "Please install Homebrew manually from https://brew.sh, then run:"
+    echo "  brew install pandoc git && brew install --cask basictex"
+    exit 0
+  fi
+  NONINTERACTIVE=1 run_as_user /bin/bash -c \
+    "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+  # Re-locate brew after install
+  for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [ -x "$candidate" ]; then
+      BREW_BIN="$candidate"
+      break
+    fi
+  done
+
+  if [ -z "$BREW_BIN" ]; then
+    echo "ERROR: Homebrew installation failed. Please install dependencies manually."
+    exit 1
+  fi
+fi
+
+echo "Using Homebrew at: $BREW_BIN"
+
+run_brew() {
+  run_as_user "$BREW_BIN" "$@"
+}
+
+echo "Installing Pandoc..."
+run_brew install pandoc \
+  || echo "WARNING: pandoc install failed; please run: brew install pandoc"
+
+echo "Installing BasicTeX (LaTeX)..."
+run_brew install --cask basictex \
+  || echo "WARNING: basictex install failed; please run: brew install --cask basictex"
+
+echo "Updating TeX PATH..."
+if [ ! -f /etc/paths.d/TeX ]; then
+  echo "/Library/TeX/texbin" > /etc/paths.d/TeX
+fi
+
+echo "Checking Git..."
+# Git ships with Xcode Command Line Tools; skip if already available
+if /usr/bin/git --version &>/dev/null 2>&1; then
+  echo "Git already available via Xcode CLT — skipping."
+else
+  run_brew install git \
+    || echo "WARNING: git install failed; please run: brew install git"
+fi
+
+echo "Book Editor dependencies installed successfully."
+exit 0
