@@ -88,64 +88,42 @@ jobs:
           --product-name "Book Editor"
           --file-description "A desktop app for writing books with GitHub version control"
 
-      # ── Windows: zip dist folder ──
-      - name: Package Windows build
+      # ── Windows: build NSIS installer ──
+      - name: Build Windows NSIS installer
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path dist\BookEditor\* `
-            -DestinationPath dist\BookEditor-Windows-${{ needs.version.outputs.version }}.zip
+          $MakeNSIS = "C:\Program Files (x86)\NSIS\makensis.exe"
+          if (-not (Test-Path $MakeNSIS)) {
+            Write-Error "makensis.exe not found at expected path: $MakeNSIS"
+            exit 1
+          }
+          & $MakeNSIS `
+            /DVERSION=${{ needs.version.outputs.version }} `
+            /V4 `
+            installer\windows\installer.nsi
 
-      # ── macOS: create a .dmg installer ──
-      - name: Install create-dmg (macOS)
-        if: runner.os == 'macOS'
-        run: brew install create-dmg
-
-      - name: Package macOS build as DMG
+      # ── macOS: build PKG installer ──
+      - name: Build macOS PKG installer
         if: runner.os == 'macOS'
         run: |
-          ICON_PATH="dist/BookEditor.app/Contents/Resources/icon.icns"
-          ICON_FLAG=""
-          if [ -f "$ICON_PATH" ]; then
-            ICON_FLAG="--volicon $ICON_PATH"
-          fi
+          chmod +x installer/macos/build-pkg.sh installer/macos/scripts/postinstall
+          bash installer/macos/build-pkg.sh ${{ needs.version.outputs.version }}
 
-          create-dmg \
-            --volname "Book Editor" \
-            $ICON_FLAG \
-            --window-pos 200 120 \
-            --window-size 660 400 \
-            --icon-size 128 \
-            --icon "BookEditor.app" 180 170 \
-            --hide-extension "BookEditor.app" \
-            --app-drop-link 480 170 \
-            "dist/BookEditor-macOS-${{ needs.version.outputs.version }}.dmg" \
-            "dist/BookEditor.app" \
-          || true
-
-          # Fallback to zip if DMG creation failed
-          if [ ! -f "dist/BookEditor-macOS-${{ needs.version.outputs.version }}.dmg" ]; then
-            cd dist && zip -r \
-              "BookEditor-macOS-${{ needs.version.outputs.version }}.zip" \
-              BookEditor.app
-          fi
-
-      - name: Upload Windows artifact
+      - name: Upload Windows installer artifact
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: dist/BookEditor-Windows-${{ needs.version.outputs.version }}.zip
+          path: installer\windows\BookEditor-Windows-${{ needs.version.outputs.version }}-installer.exe
           retention-days: 7
 
-      - name: Upload macOS artifact
+      - name: Upload macOS installer artifact
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: |
-            dist/BookEditor-macOS-${{ needs.version.outputs.version }}.dmg
-            dist/BookEditor-macOS-${{ needs.version.outputs.version }}.zip
+          path: dist/BookEditor-macOS-${{ needs.version.outputs.version }}.pkg
           retention-days: 7
 
   # ─────────────────────────────────────────────
@@ -165,7 +143,7 @@ jobs:
       - name: Collect release assets
         run: |
           mkdir -p release-assets
-          find artifacts/ -type f \( -name "*.zip" -o -name "*.dmg" \) \
+          find artifacts/ -type f \( -name "*.exe" -o -name "*.pkg" \) \
             -exec cp {} release-assets/ \;
           echo "Assets to publish:"
           ls -lh release-assets/
@@ -184,16 +162,21 @@ jobs:
             ### Installation
 
             **macOS**
-            1. Download `BookEditor-macOS-${{ needs.version.outputs.version }}.dmg`
-            2. Open the DMG and drag **Book Editor** into your Applications folder
-            3. On first launch, right-click → Open if macOS warns about an unverified developer
+            1. Download `BookEditor-macOS-${{ needs.version.outputs.version }}.pkg`
+            2. Double-click the `.pkg` file and follow the installer wizard
+            3. The installer will set up Pandoc, BasicTeX (LaTeX), and Git automatically
+            4. On first launch, right-click → Open if macOS warns about an unverified developer
+
+            > **Note:** The installer is unsigned. If Gatekeeper blocks it, right-click the `.pkg` → Open,
+            > or temporarily allow it via System Settings → Privacy & Security.
 
             **Windows**
-            1. Download `BookEditor-Windows-${{ needs.version.outputs.version }}.zip`
-            2. Extract to a folder of your choice (e.g. `C:\Program Files\BookEditor`)
-            3. Run `BookEditor.exe`
+            1. Download `BookEditor-Windows-${{ needs.version.outputs.version }}-installer.exe`
+            2. Run the installer (Administrator rights required)
+            3. The installer will set up Pandoc, MiKTeX (LaTeX), and Git automatically
+            4. Launch **Book Editor** from the Start Menu or Desktop shortcut
 
             ### Requirements
             - A GitHub Personal Access Token with `repo` scope (entered on first launch)
-            - [Pandoc](https://pandoc.org/installing.html) + a LaTeX engine for PDF generation
+            - Internet connection required during installation (for dependency downloads)
           files: release-assets/*
