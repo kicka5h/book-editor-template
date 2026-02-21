@@ -894,7 +894,7 @@ def main(page: ft.Page) -> None:
                 ft.Container(
                     ft.Row([
                         ft.Text("CHAPTERS", size=10, color=_TEXT_MUTED,
-                                weight=ft.FontWeight.W_600, letter_spacing=1.2),
+                                weight=ft.FontWeight.W_600),
                     ]),
                     padding=ft.padding.symmetric(horizontal=10, vertical=8),
                 ),
