@@ -353,21 +353,40 @@ def main(page: ft.Page) -> None:
             page.snack_bar = ft.SnackBar(ft.Text("No chapter open."), open=True)
             page.update()
             return
+
+        # Write file immediately on main thread so content is flushed before push
         try:
             Path(path).write_text(editor.value or "", encoding="utf-8")
-            _set_dirty(False)
-            token = token_holder["value"] or load_config().get("github_token")
-            if token:
-                try:
-                    git_push(repo_path_holder["value"], token)
-                    page.snack_bar = ft.SnackBar(ft.Text("Saved and pushed to GitHub."), open=True)
-                except GitCommandError as err:
-                    page.snack_bar = ft.SnackBar(ft.Text(f"Push failed: {err}"), open=True)
-            else:
-                page.snack_bar = ft.SnackBar(ft.Text("Saved locally. Sign in to push."), open=True)
         except Exception as ex:
             page.snack_bar = ft.SnackBar(ft.Text(f"Save failed: {ex}"), open=True)
+            page.update()
+            return
+
+        _set_dirty(False)
+
+        # Disable button and show saving state while push runs in background
+        save_btn.disabled = True
+        save_btn_label.value = "Saving…"
         page.update()
+
+        def _push():
+            token = token_holder["value"] or load_config().get("github_token")
+            try:
+                if token:
+                    git_push(repo_path_holder["value"], token)
+                    page.snack_bar = ft.SnackBar(ft.Text("Saved and synced to GitHub."), open=True)
+                else:
+                    page.snack_bar = ft.SnackBar(ft.Text("Saved locally. Sign in to sync."), open=True)
+            except GitCommandError as err:
+                page.snack_bar = ft.SnackBar(ft.Text(f"Sync failed: {err}"), open=True)
+            except Exception as ex:
+                page.snack_bar = ft.SnackBar(ft.Text(f"Sync failed: {ex}"), open=True)
+            finally:
+                save_btn.disabled = False
+                save_btn_label.value = "Save"
+                page.update()
+
+        threading.Thread(target=_push, daemon=True).start()
 
     def tool_new_chapter(e):
         path = repo_path_holder["value"]
@@ -513,6 +532,7 @@ def main(page: ft.Page) -> None:
         page.update()
 
     save_btn_label = ft.Text("Save")
+    save_btn = ft.ElevatedButton(content=save_btn_label, on_click=lambda e: save_current(e))
 
     def go_setup(e):
         token_holder["value"] = load_config().get("github_token", "")
@@ -536,7 +556,7 @@ def main(page: ft.Page) -> None:
             ft.ElevatedButton("Generate PDF", on_click=tool_generate_pdf),
             ft.Container(expand=True),
             ft.IconButton(ft.Icons.SETTINGS, tooltip="Settings", on_click=go_setup),
-            ft.ElevatedButton(content=save_btn_label, on_click=save_current),
+            save_btn,
         ],
     )
 
