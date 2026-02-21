@@ -590,7 +590,6 @@ def main(page: ft.Page) -> None:
     def route_change(e):
         page.views.clear()
         cfg = load_config()
-        token_holder["value"] = (cfg.get("github_token") or "").strip()
         repo_path_holder["value"] = get_repo_path(cfg)
 
         if page.route == "/signin":
