@@ -90,16 +90,16 @@ jobs:
           --file-description "A desktop app for writing books with GitHub version control"
 
       # ── Windows: build NSIS installer ──
+      - name: Install NSIS (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install nsis --no-progress -y
+
       - name: Build Windows NSIS installer
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $MakeNSIS = "C:\Program Files (x86)\NSIS\makensis.exe"
-          if (-not (Test-Path $MakeNSIS)) {
-            Write-Error "makensis.exe not found at expected path: $MakeNSIS"
-            exit 1
-          }
-          & $MakeNSIS `
+          & "C:\Program Files (x86)\NSIS\makensis.exe" `
             /DVERSION=${{ needs.version.outputs.version }} `
             /V4 `
             installer\windows\installer.nsi
