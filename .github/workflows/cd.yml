@@ -79,7 +79,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -e .
-          pip install flet
+          pip install flet pyinstaller
 
       - name: Build app with flet pack
         run: >
