@@ -139,7 +139,7 @@ def _toolbar_btn(label: str, on_click=None) -> ft.TextButton:
     )
 
 
-def _styled_field(label: str, width: int | None = None, multiline: bool = False,
+def _styled_field(label: str, width=None, multiline: bool = False,
                   min_lines: int = 1, expand: bool = False,
                   on_change=None, keyboard_type=None) -> ft.TextField:
     return ft.TextField(
