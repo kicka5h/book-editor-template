@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 """
-Create a new chapter at the end of the Chapters folder.
-
-Finds the highest chapter number (e.g. Chapter 10), creates the next chapter folder
-(Chapter 11), adds a v1.0.0 version folder, and creates an initial markdown file
-(v1.0.0.md) inside it.
-
-Usage:
-  python create_chapter.py
-  python create_chapter.py -d /path/to/Chapters
+Create a new chapter at the end of the Chapters folder (Chapter N+1 with v1.0.0).
 """
 
 import argparse
@@ -40,7 +32,6 @@ def get_max_chapter_number(chapters_dir: Path) -> int:
 def create_new_chapter(chapters_dir: Path, dry_run: bool = False) -> Optional[Path]:
     """
     Create a new chapter folder with v1.0.0 and an initial markdown file.
-
     Returns the path to the new chapter directory, or None on failure.
     """
     if not chapters_dir.exists():
@@ -83,7 +74,7 @@ def create_new_chapter(chapters_dir: Path, dry_run: bool = False) -> Optional[Pa
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Create a new chapter at the end of the Chapters folder (e.g. Chapter 11 after Chapter 10)",
-        epilog="Example: python create_chapter.py",
+        epilog="Example: create-chapter -d /path/to/Chapters",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(

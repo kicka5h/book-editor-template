@@ -6,14 +6,22 @@ ENV/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*.pyo
 
 # Distribution / packaging
 build/
 dist/
 *.egg-info/
+*.egg
 
 # macOS
 .DS_Store
 
 # Environment files
 .env
+.env.*
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/

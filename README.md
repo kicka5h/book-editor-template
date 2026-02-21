@@ -1,8 +1,76 @@
 # book-editor-template
 
-A template project for writing a book using GitHub as source control. This repository includes tools to manage chapter versions, count words, format markdown, and add or renumber chapters.
+A template project for writing a book using GitHub as source control. This repository includes tools to manage chapter versions, count words, format markdown, and add or renumber chapters, plus an optional desktop app.
 
-## Directory structure
+## Project layout
+
+```text
+book-editor-template/
+├── .gitignore
+├── pyproject.toml
+├── README.md
+├── LICENSE
+├── src/
+│   └── book_editor/
+│       ├── __init__.py
+│       ├── __main__.py    # GUI entry (python -m book_editor)
+│       ├── app.py         # Flet desktop UI
+│       ├── config/        # App config (repo path, token)
+│       ├── services/      # Chapter versioning, create, increment, word count, format, git
+│       └── utils/         # Paths, chapter number helpers
+├── tests/
+│   ├── api/
+│   ├── services/
+│   ├── repositories/
+│   └── utils/
+└── .github/workflows/     # e.g. generate PDF, create release
+```
+
+## Install and run
+
+From the repo root:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e .          # editable install
+.venv/bin/python -m book_editor     # or: book-editor
+```
+
+On Windows: `.venv\Scripts\pip install -e .` then `.venv\Scripts\python -m book_editor` or `book-editor`.
+
+Optional dev deps (tests): `pip install -e ".[dev]"` then `pytest`.
+
+## Book Editor desktop app
+
+A lightweight, cross-platform Python desktop app: sign in to GitHub, select or create a repository for your book, then write in the editor. All configuration (GitHub connection, selected repo, local clone path) is stored in **app config on your machine** (e.g. `~/Library/Application Support/book-editor` on macOS, `~/.config/book-editor` on Linux).
+
+- **Launch**: If no GitHub account is connected, you’re prompted to sign in (Personal Access Token with `repo` scope). Then you choose an existing repository or create a new one; the app clones it locally and ensures a `Chapters/` structure (with a starter chapter if the repo is empty).
+- **Editor**: Chapter list (latest version per chapter), markdown editor, and toolbar: **New chapter**, **Bump version** (minor/patch/major), **Increment chapters**, **Word count**, **Format**, **Generate PDF**, **Save**.
+- **Save**: Writes the current chapter, then `git add` / `git commit` / `git push` so your GitHub Actions workflows (e.g. generate PDF, create release) can run.
+- **Generate PDF**: Builds a single PDF from the latest version of each chapter (same logic as the `generate_book_pdf` workflow), using **pandoc** and a LaTeX engine (e.g. pdflatex). Install pandoc and LaTeX on your system to use this.
+
+Use the **Settings** (gear) button to switch repository or sign in again.
+
+## CLI tools
+
+When the package is installed, these commands are available (run from a directory that contains or is your book repo with `Chapters/`):
+
+| Command | Description |
+|--------|-------------|
+| `chapter-version list` | List chapters and current versions |
+| `chapter-version minor -c 5` | Bump minor for chapter 5 |
+| `chapter-version patch -c 1 2 3` | Bump patch for chapters 1–3 |
+| `chapter-version major --all` | Bump major for all chapters |
+| `create-chapter` | Create next chapter (e.g. Chapter 11) with v1.0.0 |
+| `increment-chapters 6` | Renumber: Chapter 7→8, 8→9, … (use `-y` to skip confirm) |
+| `count-chapter-words` | Word count for latest version of each chapter |
+| `format-markdown -r -i .` | Format markdown in place (e.g. blank lines between paragraphs) |
+
+Use `-d /path/to/Chapters` (or the appropriate flag per tool) to point at a specific book directory.
+
+---
+
+## Directory structure (book content)
 
 Chapters live under `Chapters/` with semantic versioning per chapter:
 
@@ -22,186 +90,39 @@ Each chapter can have multiple version folders (`vMAJOR.MINOR.PATCH`). The tools
 
 ---
 
-## Tools
+## Tools (CLI)
 
-All tools are Python 3 scripts. Run them from the repository root (or pass the correct paths).
+After `pip install -e .`, the tools are available as commands (see table above). Details:
 
-### 1. Chapter versioning — `chapter_version.py`
+### 1. Chapter versioning — `chapter-version`
 
-Manages semantic versioning for chapters so older versions stay in the repo and remain documented in source.
+Manages semantic versioning for chapters so older versions stay in the repo.
 
-**List all chapters and their current versions:**
-
-```bash
-python chapter_version.py list
-```
-
-**Bump versions:**
-
-- **`minor`** — typical bump when revising a chapter (e.g. `v1.0.0` → `v1.1.0`).
+- **`minor`** — typical bump when revising (e.g. `v1.0.0` → `v1.1.0`).
 - **`patch`** — small fixes (e.g. `v1.1.0` → `v1.1.1`).
 - **`major`** — large changes (e.g. `v1.1.0` → `v2.0.0`).
 
-Bumping creates a new version folder and **copies** the markdown file from the current latest version. You then edit the new file.
+Bumping creates a new version folder and **copies** the markdown file from the current latest version.
 
-**Examples:**
-
-```bash
-# Bump minor version for chapter 5
-python chapter_version.py minor -c 5
-
-# Bump patch for chapters 1, 2, and 3
-python chapter_version.py patch -c 1 2 3
-
-# Bump major version for all chapters
-python chapter_version.py major --all
-
-# Use a custom chapters directory
-python chapter_version.py minor -c 1 -d /path/to/Chapters
-```
-
-**Options:**
-
-| Option | Description |
-| ------ | ----------- |
-| `-c N` / `--chapters N [N ...]` | Chapter number(s) to bump |
-| `--all` | Bump all chapters |
-| `-d DIR` / `--dir DIR` | Chapters directory (default: `chapters`) |
+**Options:** `-c N` (chapter number(s)), `--all`, `-d DIR` (Chapters directory, default: `Chapters`).
 
 ---
 
-### 2. Word count — `count_chapter_words.py`
+### 2. Word count — `count-chapter-words`
 
-Counts words in the **latest** version of each chapter (or the whole project). Strips code blocks, links, and markdown formatting for a prose-only count.
+Counts words in the **latest** version of each chapter. Strips code blocks, links, and markdown for prose-only count. Options: `chapters_dir` (default `./Chapters`), `--total-only`, `-v` / `--verbose`, `--csv`.
 
-**Basic usage (uses `./Chapters` by default):**
+### 3. Markdown formatting — `format-markdown`
 
-```bash
-python count_chapter_words.py
-```
+Blank lines between paragraphs, optional indentation. Options: `paths`, `-r` (recursive), `-i` (in-place), `--dry-run`, `--exclude`, `--indent`, `-o` (output file).
 
-**Examples:**
+### 4. Renumber chapters — `increment-chapters`
 
-```bash
-# Custom chapters directory
-python count_chapter_words.py /path/to/Chapters
+When you insert a new chapter in the middle, renumbers existing folders (e.g. Chapter 7→8, 8→9). Usage: `increment-chapters <after_N> [chapters_dir]`. Use `-y` to skip confirmation.
 
-# Only print total word count (e.g. for scripts)
-python count_chapter_words.py --total-only
+### 5. Create a new chapter at the end — `create-chapter`
 
-# Show per-file details
-python count_chapter_words.py --verbose
-
-# CSV for spreadsheets
-python count_chapter_words.py --csv > word_counts.csv
-```
-
-**Options:**
-
-| Option | Description |
-| ------ | ----------- |
-| `chapters_dir` | Path to `Chapters` (optional; default: `./Chapters`) |
-| `--total-only` | Print only the total word count |
-| `-v` / `--verbose` | Show files and paths per chapter |
-| `--csv` | Output CSV: Chapter, Version, Files, Words |
-
----
-
-### 3. Markdown formatting — `format_markdown.py`
-
-Formats markdown files to a consistent style: blank lines between paragraphs and optional paragraph indentation. Skips code blocks, lists, headers, blockquotes, and tables when applying indentation.
-
-**Examples:**
-
-```bash
-# Preview what would change (dry run) for the whole repo
-python format_markdown.py -r --dry-run .
-
-# Format all markdown files in the repo in place
-python format_markdown.py -r -i .
-
-# Format a single file in place
-python format_markdown.py -i path/to/file.md
-
-# Format with custom exclusions
-python format_markdown.py -r -i . --exclude .git node_modules build dist
-
-# Add paragraph indentation (first paragraph not indented)
-python format_markdown.py -r -i --indent .
-```
-
-**Options:**
-
-| Option | Description |
-| ------ | ----------- |
-| `paths` | File(s) or directory/directories to format |
-| `-r` / `--recursive` | Process directories recursively (required for dirs) |
-| `-i` / `--in-place` | Overwrite files (required to save changes) |
-| `--dry-run` | Show what would be done without changing files |
-| `--exclude NAME [NAME ...]` | Directory names to skip (default includes `.git`, `node_modules`, etc.) |
-| `--indent` | Indent new paragraphs (4 spaces by default) |
-| `--indent-string STR` | Custom indentation string |
-| `-o FILE` / `--output FILE` | Output file (single file only) |
-
----
-
-### 4. Add a new chapter — `increment_chapters.py`
-
-When you insert a new chapter in the middle of the book, this script renumbers existing chapters so the new one can take the correct number. It renames folders only (e.g. `Chapter 7` → `Chapter 8`); it does not create the new chapter folder or version subfolders.
-
-**Usage:**
-
-```bash
-python increment_chapters.py <after_chapter_number> [chapters_directory]
-```
-
-**Examples:**
-
-```bash
-# Insert a new Chapter 6: current 6→7, 7→8, etc. (default dir: ./Chapters)
-python increment_chapters.py 6
-
-# Then create the new folder and content, e.g. Chapters/Chapter 6/v1.0.0/v1.0.0.md
-```
-
-```bash
-# Use a custom Chapters path
-python increment_chapters.py 6 /path/to/Chapters
-```
-
-The script lists the renames, asks for confirmation (`y/n`), then renames. After it runs, create your new chapter folder (e.g. `Chapter 6`) and add your first version (e.g. `v1.0.0/` and a markdown file) using your usual workflow.
-
----
-
-### 5. Create a new chapter at the end — `create_chapter.py`
-
-Creates a new chapter folder at the **end** of the book (e.g. if the highest is Chapter 10, creates Chapter 11). Also creates a `v1.0.0` version folder and an initial `v1.0.0.md` file inside it, so the chapter is ready to edit and works with the other tools.
-
-**Usage:**
-
-```bash
-python create_chapter.py
-```
-
-**Examples:**
-
-```bash
-# Create next chapter (default: ./Chapters)
-python create_chapter.py
-
-# Custom chapters directory
-python create_chapter.py -d /path/to/Chapters
-
-# Preview what would be created
-python create_chapter.py --dry-run
-```
-
-**Options:**
-
-| Option | Description |
-| ------ | ----------- |
-| `-d DIR` / `--dir DIR` | Chapters directory (default: `Chapters`) |
-| `--dry-run` | Show paths that would be created without creating anything |
+Creates the next chapter folder at the **end** (e.g. Chapter 11 after Chapter 10) with `v1.0.0/` and an initial markdown file. Options: `-d DIR` (Chapters directory), `--dry-run`.
 
 ---
 

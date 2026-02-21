@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "book-editor"
+version = "0.1.0"
+description = "Lightweight cross-platform book editor with GitHub sync and chapter versioning"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [
+    { name = "Book Editor contributors" }
+]
+keywords = ["book", "editor", "markdown", "github", "writing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Desktop Environment",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Editors",
+]
+dependencies = [
+    "flet>=0.24.0",
+    "GitPython>=3.1.0",
+    "PyGithub>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.scripts]
+book-editor = "book_editor.__main__:run_gui"
+chapter-version = "book_editor.services.chapter_version:main"
+create-chapter = "book_editor.services.create_chapter:main"
+increment-chapters = "book_editor.services.increment_chapters:main"
+count-chapter-words = "book_editor.services.count_chapter_words:main"
+format-markdown = "book_editor.services.format_markdown:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
