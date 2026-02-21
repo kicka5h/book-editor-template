@@ -90,16 +90,27 @@ jobs:
           --file-description "A desktop app for writing books with GitHub version control"
 
       # ── Windows: build NSIS installer ──
+      - name: Install NSIS (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install nsis --no-progress -y
+
+      - name: Install NSIS inetc plugin (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $pluginDir = "C:\Program Files (x86)\NSIS\Plugins\x86-unicode"
+          Invoke-WebRequest `
+            -Uri "https://nsis.sourceforge.io/mediawiki/images/c/c9/Inetc.zip" `
+            -OutFile "$env:TEMP\inetc.zip"
+          Expand-Archive "$env:TEMP\inetc.zip" "$env:TEMP\inetc"
+          Copy-Item "$env:TEMP\inetc\Plugins\x86-unicode\INetC.dll" $pluginDir
+
       - name: Build Windows NSIS installer
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $MakeNSIS = "C:\Program Files (x86)\NSIS\makensis.exe"
-          if (-not (Test-Path $MakeNSIS)) {
-            Write-Error "makensis.exe not found at expected path: $MakeNSIS"
-            exit 1
-          }
-          & $MakeNSIS `
+          & "C:\Program Files (x86)\NSIS\makensis.exe" `
             /DVERSION=${{ needs.version.outputs.version }} `
             /V4 `
             installer\windows\installer.nsi
