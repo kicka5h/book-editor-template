@@ -1,6 +1,7 @@
 """Flet UI for the Book Editor desktop app."""
 
 import re
+import threading
 from pathlib import Path
 
 import flet as ft
@@ -113,16 +114,21 @@ def main(page: ft.Page) -> None:
     def on_repo_view_visible():
         repo_progress.visible = True
         repo_error.value = ""
+        repos_dropdown.options = []
         page.update()
-        repos = load_repos()
-        repo_progress.visible = False
-        repos_dropdown.options = [
-            ft.dropdown.Option(f"{owner}/{name}", key=f"{owner}|{name}|{url}")
-            for owner, name, url in repos
-        ]
-        if not repos_dropdown.options:
-            repo_error.value = "No repositories found."
-        page.update()
+
+        def _load():
+            repos = load_repos()
+            repo_progress.visible = False
+            repos_dropdown.options = [
+                ft.dropdown.Option(f"{owner}/{name}", key=f"{owner}|{name}|{url}")
+                for owner, name, url in repos
+            ]
+            if not repos_dropdown.options:
+                repo_error.value = "No repositories found."
+            page.update()
+
+        threading.Thread(target=_load, daemon=True).start()
 
     def on_select_repo(e):
         key = repos_dropdown.value
@@ -181,10 +187,11 @@ def main(page: ft.Page) -> None:
                 ensure_chapters_structure(local_path)
                 save_repo_selection(owner, repo_name, url, str(local_path))
                 page.close(dlg)
+                page.update()
                 page.go("/editor")
             except Exception as ex:
                 page.snack_bar = ft.SnackBar(ft.Text(str(ex)), open=True)
-            page.update()
+                page.update()
 
         dlg = ft.AlertDialog(
             title=ft.Text("Create new repository"),

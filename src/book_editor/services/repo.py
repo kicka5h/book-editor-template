@@ -34,7 +34,7 @@ def git_push(
     """Commit changes under Chapters/ and push to origin, using token for HTTPS auth."""
     repo = Repo(repo_path)
     if repo.is_dirty(untracked_files=True):
-        repo.index.add(["Chapters/"])
+        repo.git.add("Chapters/")
         repo.index.commit(message)
     origin = repo.remotes.origin
     old_url = origin.url
