@@ -8,10 +8,6 @@
   !define VERSION "0.0.0"
 !endif
 
-!ifndef REPO_ROOT
-  !define REPO_ROOT "..\.."
-!endif
-
 Unicode True
 
 ; ── Modern UI ─────────────────────────────────────────────────────────────────
@@ -27,7 +23,7 @@ SetCompressor /SOLID lzma
 
 ; ── Pages ─────────────────────────────────────────────────────────────────────
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "${REPO_ROOT}\LICENSE"
+!insertmacro MUI_PAGE_LICENSE "..\..\LICENSE"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -94,7 +90,7 @@ Section "Book Editor" SecApp
   SectionIn RO   ; required — cannot be deselected
 
   SetOutPath "$INSTDIR"
-  File /r "${REPO_ROOT}\dist\BookEditor\*.*"
+  File "..\..\dist\BookEditor.exe"
 
   ; Start Menu shortcuts
   CreateDirectory "$SMPROGRAMS\Book Editor"
