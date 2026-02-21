@@ -88,16 +88,6 @@ jobs:
           --name "BookEditor"
           --product-name "Book Editor"
           --file-description "A desktop app for writing books with GitHub version control"
-          --distpath dist
-
-      - name: Show flet pack output structure (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: Get-ChildItem -Recurse dist | Select-Object FullName
-
-      - name: Show flet pack output structure (macOS)
-        if: runner.os == 'macOS'
-        run: find dist -print
 
       # ── Windows: build NSIS installer ──
       - name: Install NSIS (Windows)
@@ -112,7 +102,6 @@ jobs:
         run: |
           & "C:\Program Files (x86)\NSIS\makensis.exe" `
             /DVERSION=${{ needs.version.outputs.version }} `
-            /DREPO_ROOT=${{ github.workspace }} `
             /V4 `
             installer.nsi
 
