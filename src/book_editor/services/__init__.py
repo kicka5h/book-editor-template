@@ -12,6 +12,8 @@ from book_editor.services.github_app import (
     create_repo,
     clone_repo,
     ensure_chapters_structure,
+    start_device_flow,
+    poll_device_flow,
 )
 from book_editor.services.pdf_build import build_pdf, get_latest_chapter_files, check_pandoc_available
 
@@ -30,6 +32,8 @@ __all__ = [
     "create_repo",
     "clone_repo",
     "ensure_chapters_structure",
+    "start_device_flow",
+    "poll_device_flow",
     "build_pdf",
     "get_latest_chapter_files",
     "check_pandoc_available",

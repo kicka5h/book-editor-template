@@ -1,6 +1,7 @@
 """Flet UI for the Book Editor desktop app."""
 
 import re
+import threading
 from pathlib import Path
 
 import flet as ft
@@ -31,6 +32,8 @@ from book_editor.services import (
     create_repo,
     clone_repo,
     ensure_chapters_structure,
+    start_device_flow,
+    poll_device_flow,
     build_pdf,
     check_pandoc_available,
 )
@@ -48,46 +51,98 @@ def main(page: ft.Page) -> None:
     current_md_path = {"value": None}
     editor_dirty = {"value": False}
 
-    # --- Sign-in view ---
-    token_field = ft.TextField(
-        label="GitHub Personal Access Token",
-        password=True,
-        can_reveal_password=True,
-        value=token_holder["value"],
-        hint_text="Create at GitHub → Settings → Developer settings → Personal access tokens",
-        width=420,
+    # --- Sign-in view (GitHub Device Flow) ---
+    signin_user_code = ft.Text(
+        "", size=32, weight=ft.FontWeight.BOLD, selectable=True
     )
+    signin_instruction = ft.Text("")
     signin_error = ft.Text("", color=ft.Colors.ERROR)
+    signin_progress = ft.ProgressRing(visible=False)
+    signin_button = ft.ElevatedButton("Sign in with GitHub", disabled=False)
 
-    def on_signin(e):
-        token = (token_field.value or "").strip()
-        if not token:
-            signin_error.value = "Enter a token."
+    def _do_device_flow():
+        """Runs entirely on a background thread."""
+        signin_button.disabled = True
+        signin_error.value = ""
+        signin_instruction.value = "Contacting GitHub…"
+        signin_user_code.value = ""
+        signin_progress.visible = True
+        page.update()
+        try:
+            flow = start_device_flow()
+        except Exception as ex:
+            signin_error.value = str(ex)
+            signin_instruction.value = ""
+            signin_progress.visible = False
+            signin_button.disabled = False
             page.update()
             return
-        signin_error.value = "Checking…"
+
+        code = flow["user_code"]
+        uri = flow["verification_uri"]
+        signin_user_code.value = code
+        signin_instruction.value = (
+            f"Go to  {uri}  and enter the code above.\n"
+            "Waiting for you to authorise…"
+        )
         page.update()
+
+        # Open the browser for the user
+        import webbrowser
+        webbrowser.open(uri)
+
+        def _on_waiting():
+            page.update()
+
+        try:
+            token = poll_device_flow(
+                device_code=flow["device_code"],
+                interval=flow.get("interval", 5),
+                expires_in=flow.get("expires_in", 900),
+                on_waiting=_on_waiting,
+            )
+        except Exception as ex:
+            signin_error.value = str(ex)
+            signin_instruction.value = ""
+            signin_user_code.value = ""
+            signin_progress.visible = False
+            signin_button.disabled = False
+            page.update()
+            return
+
         user = validate_token(token)
         if not user:
-            signin_error.value = "Invalid token. Check it has repo scope."
+            signin_error.value = "Token received but could not verify with GitHub."
+            signin_progress.visible = False
+            signin_button.disabled = False
             page.update()
             return
+
         save_github_connection(token, user)
         token_holder["value"] = token
-        signin_error.value = ""
-        page.go("/repo")
+        signin_progress.visible = False
+        signin_user_code.value = ""
+        signin_instruction.value = ""
         page.update()
+        page.go("/repo")
+
+    def on_signin(e):
+        threading.Thread(target=_do_device_flow, daemon=True).start()
+
+    signin_button.on_click = on_signin
 
     signin_content = ft.Column(
         [
             ft.Text("Sign in to GitHub", size=24, weight=ft.FontWeight.BOLD),
             ft.Text("Connect your GitHub account to store your book in a repository."),
             ft.Container(height=20),
-            token_field,
-            ft.Container(height=8),
-            signin_error,
+            signin_button,
             ft.Container(height=16),
-            ft.ElevatedButton("Sign in to GitHub", on_click=on_signin),
+            signin_user_code,
+            ft.Container(height=4),
+            signin_instruction,
+            ft.Container(height=8),
+            ft.Row([signin_progress, signin_error]),
         ],
         scroll=ft.ScrollMode.AUTO,
         expand=True,
@@ -113,16 +168,21 @@ def main(page: ft.Page) -> None:
     def on_repo_view_visible():
         repo_progress.visible = True
         repo_error.value = ""
+        repos_dropdown.options = []
         page.update()
-        repos = load_repos()
-        repo_progress.visible = False
-        repos_dropdown.options = [
-            ft.dropdown.Option(f"{owner}/{name}", key=f"{owner}|{name}|{url}")
-            for owner, name, url in repos
-        ]
-        if not repos_dropdown.options:
-            repo_error.value = "No repositories found."
-        page.update()
+
+        def _load():
+            repos = load_repos()
+            repo_progress.visible = False
+            repos_dropdown.options = [
+                ft.dropdown.Option(f"{owner}/{name}", key=f"{owner}|{name}|{url}")
+                for owner, name, url in repos
+            ]
+            if not repos_dropdown.options:
+                repo_error.value = "No repositories found."
+            page.update()
+
+        threading.Thread(target=_load, daemon=True).start()
 
     def on_select_repo(e):
         key = repos_dropdown.value
@@ -181,10 +241,11 @@ def main(page: ft.Page) -> None:
                 ensure_chapters_structure(local_path)
                 save_repo_selection(owner, repo_name, url, str(local_path))
                 page.close(dlg)
+                page.update()
                 page.go("/editor")
             except Exception as ex:
                 page.snack_bar = ft.SnackBar(ft.Text(str(ex)), open=True)
-            page.update()
+                page.update()
 
         dlg = ft.AlertDialog(
             title=ft.Text("Create new repository"),

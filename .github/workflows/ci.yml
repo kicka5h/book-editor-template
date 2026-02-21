@@ -62,7 +62,18 @@ jobs:
           pip install -e .
           pip install flet pyinstaller
 
-      - name: Verify flet pack runs (dry run)
+      - name: Verify flet pack runs (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >
+          flet pack src/book_editor/__main__.py
+          --name "BookEditor"
+          --product-name "Book Editor"
+          --file-description "A desktop app for writing books with GitHub version control"
+          -D
+
+      - name: Verify flet pack runs (macOS)
+        if: runner.os == 'macOS'
         run: >
           flet pack src/book_editor/__main__.py
           --name "BookEditor"
@@ -73,8 +84,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if (-not (Test-Path dist\BookEditor.exe)) {
-            Write-Error "Expected dist\BookEditor.exe was not found"
+          if (-not (Test-Path dist\BookEditor\BookEditor.exe)) {
+            Write-Error "Expected dist\BookEditor\BookEditor.exe was not found"
             exit 1
           }
 
