@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
 import requests
-from github import Github
+from github import Auth, Github
 from github.GithubException import BadCredentialsException
 from git.repo.base import Repo
 
@@ -105,7 +105,7 @@ def validate_token(token: str) -> Optional[str]:
     if not (token or "").strip():
         return None
     try:
-        g = Github(token.strip())
+        g = Github(auth=Auth.Token(token.strip()))
         user = g.get_user()
         return user.login
     except BadCredentialsException:
@@ -121,7 +121,7 @@ def list_user_repos(token: str) -> List[Tuple[str, str, str]]:
     """
     if not (token or "").strip():
         return []
-    g = Github(token.strip())
+    g = Github(auth=Auth.Token(token.strip()))
     user = g.get_user()
     repos = []
     for repo in user.get_repos():
@@ -136,7 +136,7 @@ def create_repo(token: str, name: str, private: bool = False, description: str =
     """
     Create a new GitHub repository. Returns (owner, name, clone_url).
     """
-    g = Github(token.strip())
+    g = Github(auth=Auth.Token(token.strip()))
     user = g.get_user()
     repo = user.create_repo(name, private=private, description=description or "Book content")
     return repo.owner.login, repo.name, repo.clone_url
