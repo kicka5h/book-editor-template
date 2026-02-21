@@ -89,6 +89,15 @@ jobs:
           --product-name "Book Editor"
           --file-description "A desktop app for writing books with GitHub version control"
 
+      - name: Show flet pack output structure (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Get-ChildItem -Recurse dist | Select-Object FullName
+
+      - name: Show flet pack output structure (macOS)
+        if: runner.os == 'macOS'
+        run: find dist -print
+
       # ── Windows: build NSIS installer ──
       - name: Install NSIS (Windows)
         if: runner.os == 'Windows'
