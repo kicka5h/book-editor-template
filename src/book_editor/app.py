@@ -297,9 +297,8 @@ def main(page: ft.Page) -> None:
 
     def _set_dirty(dirty: bool):
         editor_dirty["value"] = dirty
-        if hasattr(page, "save_btn") and page.save_btn:
-            page.save_btn.text = "Save (unsaved)" if dirty else "Save"
-            page.update()
+        save_btn_label.value = "Save (unsaved)" if dirty else "Save"
+        page.update()
 
     def refresh_chapter_list():
         path = repo_path_holder["value"]
@@ -496,7 +495,7 @@ def main(page: ft.Page) -> None:
         page.open(dlg)
         page.update()
 
-    save_btn_ref = {"ref": None}
+    save_btn_label = ft.Text("Save")
 
     def go_setup(e):
         token_holder["value"] = load_config().get("github_token", "")
@@ -520,14 +519,9 @@ def main(page: ft.Page) -> None:
             ft.ElevatedButton("Generate PDF", on_click=tool_generate_pdf),
             ft.Container(expand=True),
             ft.IconButton(ft.Icons.SETTINGS, tooltip="Settings", on_click=go_setup),
-            ft.ElevatedButton("Save", on_click=save_current),
+            ft.ElevatedButton(content=save_btn_label, on_click=save_current),
         ],
     )
-    for c in toolbar.controls:
-        if isinstance(c, ft.ElevatedButton) and c.text == "Save":
-            save_btn_ref["ref"] = c
-            break
-    page.save_btn = save_btn_ref["ref"]
 
     editor_content = ft.Column(
         [
