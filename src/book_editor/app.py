@@ -477,6 +477,9 @@ def main(page: ft.Page) -> None:
     # Tracks whether the scratch-pad save dialog has already been triggered
     # for the current unsaved session (prevents re-triggering on every keystroke)
     _save_dialog_pending = {"value": False}
+    # Set to True by the window-close guard when the user chooses "Save first…"
+    # so that each save handler knows to destroy the window after saving.
+    _pending_close = {"value": False}
 
     # ── Markdown style sheet — Anthropic palette ─────────────────────────────
     _md_body_style  = ft.TextStyle(color=_TEXT,       size=15, font_family="Georgia")
@@ -665,6 +668,10 @@ def main(page: ft.Page) -> None:
                     _, _, new_md_path = new_chapters[-1]
                     Path(new_md_path).write_text(md_content["value"], encoding="utf-8")
                     page.close(dlg)
+                    if _pending_close["value"]:
+                        _pending_close["value"] = False
+                        page.window.destroy()
+                        return
                     load_chapter_file(new_md_path)
                     page.open(ft.SnackBar(
                         ft.Text(f"Saved to new Chapter {new_chapters[-1][0]}.")
@@ -683,6 +690,10 @@ def main(page: ft.Page) -> None:
                 sel_path = Path(sel)
                 sel_path.write_text(md_content["value"], encoding="utf-8")
                 page.close(dlg)
+                if _pending_close["value"]:
+                    _pending_close["value"] = False
+                    page.window.destroy()
+                    return
                 load_chapter_file(sel_path)
                 page.open(ft.SnackBar(ft.Text("Content saved to chapter.")))
             except Exception as ex:
@@ -715,6 +726,10 @@ def main(page: ft.Page) -> None:
                 _scratch_placeholder.visible = True
                 _mark_dirty(False)
                 _update_word_count_internal()
+                if _pending_close["value"]:
+                    _pending_close["value"] = False
+                    page.window.destroy()
+                    return
                 page.open(ft.SnackBar(ft.Text(f"Saved to planning/{new_path.name}.")))
             except Exception as ex:
                 page.open(ft.SnackBar(ft.Text(str(ex))))
@@ -745,6 +760,10 @@ def main(page: ft.Page) -> None:
                 _scratch_placeholder.visible = True
                 _mark_dirty(False)
                 _update_word_count_internal()
+                if _pending_close["value"]:
+                    _pending_close["value"] = False
+                    page.window.destroy()
+                    return
                 page.open(ft.SnackBar(ft.Text(f"Saved to {sel_path.name}.")))
             except Exception as ex:
                 page.open(ft.SnackBar(ft.Text(str(ex))))
@@ -752,6 +771,7 @@ def main(page: ft.Page) -> None:
 
         def _on_dismiss(e2=None):
             _save_dialog_pending["value"] = False
+            _pending_close["value"] = False  # cancel any pending close-after-save
 
         dlg = ft.AlertDialog(
             bgcolor=_SURFACE,
@@ -825,15 +845,6 @@ def main(page: ft.Page) -> None:
         md_content["value"] = new_text
         _mark_dirty(True)
         _update_word_count_internal()
-        # Trigger save-to-chapter dialog the first time the user types into a
-        # scratch-pad session (no chapter open, content just became non-empty)
-        if (
-            current_md_path["value"] is None
-            and new_text.strip()
-            and not _save_dialog_pending["value"]
-        ):
-            _show_save_to_chapter_dialog()
-            return  # page.update() will be called inside dialog open
         page.update()
 
     def _on_raw_editor_blur(e):
@@ -898,9 +909,10 @@ def main(page: ft.Page) -> None:
         _update_word_count_internal()
         page.update()
 
-    def load_chapter_file(md_path: Path):
+    def _do_load_chapter_file(md_path: Path):
+        """Internal: unconditionally load a chapter file into the editor."""
         current_md_path["value"] = md_path
-        _save_dialog_pending["value"] = False  # reset scratch-pad state
+        _save_dialog_pending["value"] = False
         try:
             text = md_path.read_text(encoding="utf-8")
         except Exception:
@@ -908,19 +920,73 @@ def main(page: ft.Page) -> None:
         md_content["value"] = text
         md_preview.value = text
         raw_editor.value = text
-        # Always start in preview mode when opening a chapter
         editor_mode["value"] = "preview"
         preview_layer.visible = True
         edit_layer.visible = False
-        # Placeholder only shows when no chapter is open
         _scratch_placeholder.visible = False
-        # Extract chapter number for status bar
         m = re.search(r"[Cc]hapter\s+(\d+)", str(md_path))
         status_chapter.value = f"Chapter {m.group(1)}" if m else md_path.stem
         _mark_dirty(False)
         _update_word_count_internal()
-        # refresh_chapter_list will call page.update() at the end
         refresh_chapter_list()
+
+    def load_chapter_file(md_path: Path):
+        """Load a chapter, prompting to save/discard scratch content first if needed."""
+        scratch_dirty = (
+            current_md_path["value"] is None
+            and md_content["value"].strip()
+        )
+        if not scratch_dirty:
+            _do_load_chapter_file(md_path)
+            return
+
+        # Scratch pad has unsaved content — ask what to do before discarding it
+        def _discard_and_open(e2):
+            page.close(guard_dlg)
+            _do_load_chapter_file(md_path)
+            page.update()
+
+        def _save_then_open(e2):
+            page.close(guard_dlg)
+            # Re-use the save dialog; after saving it will not auto-open the chapter,
+            # so we chain: after the save dialog is dismissed (saved or kept), load the chapter.
+            # We do this by temporarily monkey-patching _on_dismiss in the save dialog to
+            # also trigger the load.  Simpler: just show the save dialog and let the user
+            # choose — they can come back to open the chapter afterwards.
+            _save_dialog_pending["value"] = False
+            _show_save_to_chapter_dialog()
+            page.update()
+
+        guard_dlg = ft.AlertDialog(
+            bgcolor=_SURFACE,
+            modal=True,
+            title=_heading("Unsaved scratch content", size=18),
+            content=ft.Container(
+                ft.Text(
+                    "You have unsaved content in the scratch pad.\n"
+                    "Save it before opening this chapter, or discard it?",
+                    color=_TEXT_MUTED,
+                    size=13,
+                ),
+                width=320,
+            ),
+            actions=[
+                _ghost_btn("Cancel", on_click=lambda e2: page.close(guard_dlg)),
+                _ghost_btn("Save first…", on_click=_save_then_open),
+                ft.TextButton(
+                    "Discard & open",
+                    on_click=_discard_and_open,
+                    style=ft.ButtonStyle(
+                        color={ft.ControlState.DEFAULT: _ERROR,
+                               ft.ControlState.HOVERED: "#FF7070"},
+                        padding=ft.padding.symmetric(horizontal=12, vertical=8),
+                    ),
+                ),
+            ],
+            shape=ft.RoundedRectangleBorder(radius=10),
+        )
+        page.open(guard_dlg)
+        page.update()
 
     def save_current(e=None):
         path = current_md_path["value"]
@@ -1736,6 +1802,65 @@ def main(page: ft.Page) -> None:
         page.update()
 
     page.on_route_change = route_change
+
+    # ── Window-close guard ────────────────────────────────────────────────────
+    # Intercept the OS close button when the scratch pad has unsaved content.
+    page.window.prevent_close = True
+
+    def _on_window_event(e):
+        if e.data != "close":
+            return
+        scratch_dirty = (
+            current_md_path["value"] is None
+            and md_content["value"].strip()
+        )
+        if not scratch_dirty:
+            page.window.destroy()
+            return
+
+        def _save_and_close(e2):
+            page.close(close_dlg)
+            _pending_close["value"] = True
+            _save_dialog_pending["value"] = False
+            _show_save_to_chapter_dialog()
+            page.update()
+
+        def _discard_and_close(e2):
+            page.close(close_dlg)
+            page.window.destroy()
+
+        close_dlg = ft.AlertDialog(
+            bgcolor=_SURFACE,
+            modal=True,
+            title=_heading("Unsaved scratch content", size=18),
+            content=ft.Container(
+                ft.Text(
+                    "You have unsaved content in the scratch pad.\n"
+                    "Save it before closing, or discard it?",
+                    color=_TEXT_MUTED,
+                    size=13,
+                ),
+                width=320,
+            ),
+            actions=[
+                _ghost_btn("Cancel", on_click=lambda e2: page.close(close_dlg)),
+                _ghost_btn("Save first…", on_click=_save_and_close),
+                ft.TextButton(
+                    "Discard & close",
+                    on_click=_discard_and_close,
+                    style=ft.ButtonStyle(
+                        color={ft.ControlState.DEFAULT: _ERROR,
+                               ft.ControlState.HOVERED: "#FF7070"},
+                        padding=ft.padding.symmetric(horizontal=12, vertical=8),
+                    ),
+                ),
+            ],
+            shape=ft.RoundedRectangleBorder(radius=10),
+        )
+        page.open(close_dlg)
+        page.update()
+
+    page.window.on_event = _on_window_event
 
     # Initial route
     if not is_github_connected(config):
