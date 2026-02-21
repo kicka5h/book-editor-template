@@ -1,0 +1,163 @@
+name: Build, Sign & Notarize macOS
+
+# Triggers on any tag like v1.0.0, v1.2.3, etc.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Python ──────────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ── 3. Install Flet CLI + project deps ────────────────────────────────
+      - name: Install dependencies
+        run: |
+          pip install flet
+          pip install -e .
+
+      # ── 4. Build .app bundle ───────────────────────────────────────────────
+      - name: Build macOS app
+        run: flet build macos --project "Book Editor" --org "com.kickash"
+
+      # ── 5. Import Developer ID certificate into an ephemeral keychain ─────
+      #
+      #  Required secrets (Settings → Secrets and variables → Actions):
+      #    MACOS_CERTIFICATE        Base64-encoded .p12 exported from Keychain Access
+      #    MACOS_CERTIFICATE_PWD    Password you set when exporting the .p12
+      #    MACOS_CI_KEYCHAIN_PWD    Any strong random string (used only for CI keychain)
+      #
+      #  To export and encode your certificate:
+      #    1. Keychain Access → right-click "Developer ID Application: ..." → Export
+      #    2. Save as certificate.p12, set a password
+      #    3. Run:  base64 -i certificate.p12 | pbcopy
+      #    4. Paste as the MACOS_CERTIFICATE secret
+      #
+      - name: Import signing certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.MACOS_CI_KEYCHAIN_PWD }}
+        run: |
+          # Create a temporary keychain that only lives for this job
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          # Keep the keychain unlocked for the duration of the job
+          security set-keychain-settings -t 3600 -u build.keychain
+
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security import certificate.p12 \
+            -k build.keychain \
+            -P "$MACOS_CERTIFICATE_PWD" \
+            -T /usr/bin/codesign
+          rm certificate.p12
+
+          # Allow codesign to access the key without a GUI prompt
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s -k "$MACOS_CI_KEYCHAIN_PWD" \
+            build.keychain
+
+      # ── 6. Recursively sign the .app bundle ───────────────────────────────
+      #
+      #  Flet bundles a full Python interpreter, C extensions (.so), and
+      #  dylibs. Apple's notary service rejects any bundle that contains
+      #  unsigned binaries, so we must sign inside-out:
+      #    a) all .dylib / .so files
+      #    b) all nested .framework bundles
+      #    c) the outer .app last
+      #
+      - name: Code sign app bundle
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          APP="build/macos/Build/Products/Release/Book Editor.app"
+          IDENTITY="Developer ID Application: $(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1 | sed 's/.*"\(.*\)"/\1/')"
+
+          echo "Signing with: $IDENTITY"
+
+          # Sign all dylibs and Python C-extension .so files first
+          find "$APP" -type f \( -name "*.dylib" -o -name "*.so" \) | while read f; do
+            codesign --timestamp --sign "$IDENTITY" "$f"
+          done
+
+          # Sign nested frameworks (inner before outer)
+          find "$APP/Contents/Frameworks" -type d -name "*.framework" \
+            | sort -r \
+            | while read fw; do
+              codesign --timestamp --options runtime --sign "$IDENTITY" "$fw"
+            done
+
+          # Sign the outer .app bundle with hardened runtime + entitlements
+          codesign --timestamp \
+            --options runtime \
+            --entitlements entitlements.plist \
+            --sign "$IDENTITY" \
+            "$APP"
+
+          # Verify
+          codesign --verify --deep --strict "$APP"
+          echo "Code signing verified ✓"
+
+      # ── 7. Package into a .dmg ────────────────────────────────────────────
+      - name: Create DMG
+        run: |
+          APP_DIR="build/macos/Build/Products/Release"
+          hdiutil create \
+            -volname "Book Editor" \
+            -srcfolder "$APP_DIR" \
+            -ov \
+            -format UDZO \
+            "BookEditor.dmg"
+
+      # ── 8. Notarize ────────────────────────────────────────────────────────
+      #
+      #  Required secrets:
+      #    APPLE_ID              Your Apple developer account email
+      #    APPLE_APP_PASSWORD    App-specific password from appleid.apple.com
+      #                          (Account → Sign-In and Security → App-Specific Passwords)
+      #    APPLE_TEAM_ID         10-char team ID from developer.apple.com
+      #
+      - name: Notarize DMG
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcrun notarytool submit "BookEditor.dmg" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+      # ── 9. Staple the notarization ticket to the DMG ──────────────────────
+      #
+      #  Stapling embeds the ticket so Gatekeeper can verify the app
+      #  even without an internet connection.
+      #
+      - name: Staple notarization ticket
+        run: xcrun stapler staple "BookEditor.dmg"
+
+      # ── 10. Clean up ephemeral keychain ───────────────────────────────────
+      - name: Delete temporary keychain
+        if: always()
+        run: security delete-keychain build.keychain || true
+
+      # ── 11. Upload to GitHub Release ──────────────────────────────────────
+      - name: Upload DMG to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BookEditor.dmg
+          fail_on_unmatched_files: true
