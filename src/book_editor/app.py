@@ -42,6 +42,19 @@ from book_editor.services import (
 from book_editor.utils import chapters_dir
 
 
+# ── Anthropic brand palette ──────────────────────────────────────────────────
+_BG = "#1A1A1A"          # near-black background
+_SURFACE = "#242424"     # card / sidebar surface
+_SURFACE2 = "#2C2C2C"   # slightly lighter surface (toolbar, inputs)
+_ACCENT = "#DA7756"      # Anthropic coral
+_ACCENT_HOVER = "#C4674A"
+_TEXT = "#F5F0EB"        # warm off-white primary text
+_TEXT_MUTED = "#A09890"  # muted / secondary text
+_BORDER = "#383838"      # subtle border
+_ERROR = "#E05C5C"       # error red
+_SUCCESS = "#6BBF8E"     # success green (snackbar positive)
+
+
 def _log(label: str, ex: BaseException) -> None:
     """Print a labelled exception + full traceback to stderr."""
     print(f"\n[Book Editor] {label}: {ex}", file=sys.stderr)
@@ -49,25 +62,187 @@ def _log(label: str, ex: BaseException) -> None:
     print(file=sys.stderr)
 
 
+# ── Reusable styled widget factories ────────────────────────────────────────
+
+def _heading(text: str, size: int = 22) -> ft.Text:
+    return ft.Text(text, size=size, weight=ft.FontWeight.BOLD, color=_TEXT)
+
+
+def _body(text: str, color: str = _TEXT_MUTED) -> ft.Text:
+    return ft.Text(text, size=13, color=color)
+
+
+def _divider() -> ft.Divider:
+    return ft.Divider(height=1, color=_BORDER)
+
+
+def _primary_btn(label: str, on_click=None, disabled: bool = False) -> ft.ElevatedButton:
+    return ft.ElevatedButton(
+        label,
+        on_click=on_click,
+        disabled=disabled,
+        style=ft.ButtonStyle(
+            bgcolor={
+                ft.ControlState.DEFAULT: _ACCENT,
+                ft.ControlState.HOVERED: _ACCENT_HOVER,
+                ft.ControlState.DISABLED: _SURFACE2,
+            },
+            color={
+                ft.ControlState.DEFAULT: _TEXT,
+                ft.ControlState.DISABLED: _TEXT_MUTED,
+            },
+            shape=ft.RoundedRectangleBorder(radius=6),
+            elevation=0,
+            padding=ft.padding.symmetric(horizontal=16, vertical=10),
+        ),
+    )
+
+
+def _secondary_btn(label: str, on_click=None, icon: str | None = None) -> ft.OutlinedButton:
+    return ft.OutlinedButton(
+        label,
+        on_click=on_click,
+        icon=icon,
+        style=ft.ButtonStyle(
+            color={ft.ControlState.DEFAULT: _TEXT_MUTED, ft.ControlState.HOVERED: _TEXT},
+            side={ft.ControlState.DEFAULT: ft.BorderSide(1, _BORDER), ft.ControlState.HOVERED: ft.BorderSide(1, _ACCENT)},
+            shape=ft.RoundedRectangleBorder(radius=6),
+            elevation=0,
+            padding=ft.padding.symmetric(horizontal=16, vertical=10),
+        ),
+    )
+
+
+def _ghost_btn(label: str, on_click=None, icon: str | None = None, color: str = _TEXT_MUTED) -> ft.TextButton:
+    return ft.TextButton(
+        label,
+        on_click=on_click,
+        icon=icon,
+        style=ft.ButtonStyle(
+            color={ft.ControlState.DEFAULT: color, ft.ControlState.HOVERED: _TEXT},
+            padding=ft.padding.symmetric(horizontal=12, vertical=8),
+        ),
+    )
+
+
+def _toolbar_btn(label: str, on_click=None) -> ft.TextButton:
+    """Compact toolbar button."""
+    return ft.TextButton(
+        label,
+        on_click=on_click,
+        style=ft.ButtonStyle(
+            color={ft.ControlState.DEFAULT: _TEXT_MUTED, ft.ControlState.HOVERED: _TEXT},
+            bgcolor={ft.ControlState.HOVERED: _SURFACE2},
+            shape=ft.RoundedRectangleBorder(radius=4),
+            padding=ft.padding.symmetric(horizontal=10, vertical=6),
+        ),
+    )
+
+
+def _styled_field(label: str, width: int | None = None, multiline: bool = False,
+                  min_lines: int = 1, expand: bool = False,
+                  on_change=None, keyboard_type=None) -> ft.TextField:
+    return ft.TextField(
+        label=label,
+        label_style=ft.TextStyle(color=_TEXT_MUTED, size=12),
+        width=width,
+        multiline=multiline,
+        min_lines=min_lines,
+        expand=expand,
+        on_change=on_change,
+        keyboard_type=keyboard_type,
+        text_style=ft.TextStyle(color=_TEXT, size=13),
+        border_color=_BORDER,
+        focused_border_color=_ACCENT,
+        cursor_color=_ACCENT,
+        bgcolor=_SURFACE2,
+        border_radius=6,
+        content_padding=ft.padding.symmetric(horizontal=12, vertical=10),
+    )
+
+
+def _code_field(label: str, multiline: bool = False, min_lines: int = 1,
+                expand: bool = False, on_change=None) -> ft.TextField:
+    """Monospace variant for the markdown editor."""
+    return ft.TextField(
+        label=label,
+        label_style=ft.TextStyle(color=_TEXT_MUTED, size=12),
+        multiline=multiline,
+        min_lines=min_lines,
+        expand=expand,
+        on_change=on_change,
+        text_style=ft.TextStyle(color=_TEXT, font_family="monospace", size=13),
+        border_color=_BORDER,
+        focused_border_color=_ACCENT,
+        cursor_color=_ACCENT,
+        bgcolor=_SURFACE,
+        border_radius=6,
+        content_padding=ft.padding.symmetric(horizontal=12, vertical=12),
+    )
+
+
+def _card(content: ft.Control, padding: int = 20) -> ft.Container:
+    return ft.Container(
+        content,
+        bgcolor=_SURFACE,
+        border_radius=10,
+        padding=padding,
+        border=ft.border.all(1, _BORDER),
+    )
+
+
+def _accent_badge(text: str) -> ft.Container:
+    """Small pill badge with accent colour."""
+    return ft.Container(
+        ft.Text(text, size=11, color=_TEXT, weight=ft.FontWeight.W_600),
+        bgcolor=_ACCENT,
+        border_radius=100,
+        padding=ft.padding.symmetric(horizontal=10, vertical=4),
+    )
+
+
+# ── App theme ────────────────────────────────────────────────────────────────
+
+def _build_theme() -> ft.Theme:
+    return ft.Theme(
+        color_scheme_seed=_ACCENT,
+        color_scheme=ft.ColorScheme(
+            primary=_ACCENT,
+            on_primary=_TEXT,
+            background=_BG,
+            surface=_SURFACE,
+            on_surface=_TEXT,
+            secondary=_ACCENT,
+        ),
+        visual_density=ft.VisualDensity.COMPACT,
+    )
+
+
+# ── Main app ─────────────────────────────────────────────────────────────────
+
 def main(page: ft.Page) -> None:
     page.title = "Book Editor"
-    page.window.min_width = 900
-    page.window.min_height = 600
-    page.theme_mode = ft.ThemeMode.LIGHT
+    page.window.min_width = 960
+    page.window.min_height = 620
+    page.theme_mode = ft.ThemeMode.DARK
+    page.bgcolor = _BG
+    page.theme = _build_theme()
+    page.padding = 0
 
     config = load_config()
     token_holder = {"value": (config.get("github_token") or "").strip()}
     current_md_path = {"value": None}
     editor_dirty = {"value": False}
 
-    # --- Sign-in view (GitHub Device Flow) ---
+    # ── Sign-in view (GitHub Device Flow) ───────────────────────────────────
     signin_user_code = ft.Text(
-        "", size=32, weight=ft.FontWeight.BOLD, selectable=True
+        "", size=34, weight=ft.FontWeight.BOLD, selectable=True,
+        color=_ACCENT, font_family="monospace",
     )
-    signin_instruction = ft.Text("")
-    signin_error = ft.Text("", color=ft.Colors.ERROR)
-    signin_progress = ft.ProgressRing(visible=False)
-    signin_button = ft.ElevatedButton("Sign in with GitHub", disabled=False)
+    signin_instruction = ft.Text("", size=13, color=_TEXT_MUTED)
+    signin_error = ft.Text("", color=_ERROR, size=13)
+    signin_progress = ft.ProgressRing(visible=False, color=_ACCENT, stroke_width=2, width=20, height=20)
+    signin_button = _primary_btn("Sign in with GitHub", disabled=False)
 
     def _do_device_flow():
         """Runs entirely on a background thread."""
@@ -97,7 +272,6 @@ def main(page: ft.Page) -> None:
         )
         page.update()
 
-        # Open the browser for the user
         import webbrowser
         webbrowser.open(uri)
 
@@ -144,31 +318,75 @@ def main(page: ft.Page) -> None:
 
     signin_content = ft.Column(
         [
-            ft.Text("Sign in to GitHub", size=24, weight=ft.FontWeight.BOLD),
-            ft.Text("Connect your GitHub account to store your book in a repository."),
-            ft.Container(height=20),
-            signin_button,
-            ft.Container(height=16),
-            signin_user_code,
-            ft.Container(height=4),
-            signin_instruction,
-            ft.Container(height=8),
-            ft.Row([signin_progress, signin_error]),
+            ft.Container(height=40),
+            ft.Row(
+                [
+                    ft.Container(
+                        ft.Column(
+                            [
+                                # Logo-ish mark
+                                ft.Container(
+                                    ft.Text("✦", size=28, color=_ACCENT),
+                                    margin=ft.margin.only(bottom=16),
+                                ),
+                                _heading("Book Editor", size=26),
+                                ft.Container(height=6),
+                                _body("Connect your GitHub account to store\nyour book in a private repository."),
+                                ft.Container(height=32),
+                                signin_button,
+                                ft.Container(height=20),
+                                # Code display card (hidden until flow starts)
+                                ft.Container(
+                                    ft.Column([
+                                        _body("Your device code", _TEXT_MUTED),
+                                        ft.Container(height=6),
+                                        signin_user_code,
+                                        ft.Container(height=4),
+                                        signin_instruction,
+                                    ]),
+                                    visible=True,
+                                ),
+                                ft.Container(height=8),
+                                ft.Row([signin_progress, signin_error], spacing=8),
+                            ],
+                            spacing=0,
+                        ),
+                        width=400,
+                        padding=40,
+                        bgcolor=_SURFACE,
+                        border_radius=12,
+                        border=ft.border.all(1, _BORDER),
+                    )
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+            ),
         ],
         scroll=ft.ScrollMode.AUTO,
         expand=True,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
-    # --- Repo selection view ---
+    # ── Repo selection view ──────────────────────────────────────────────────
     repos_dropdown = ft.Dropdown(
-        label="Choose a repository",
+        label="Repository",
         width=420,
         options=[],
+        border_color=_BORDER,
+        focused_border_color=_ACCENT,
+        bgcolor=_SURFACE2,
+        border_radius=6,
+        label_style=ft.TextStyle(color=_TEXT_MUTED, size=12),
+        text_style=ft.TextStyle(color=_TEXT, size=13),
     )
-    repo_progress = ft.ProgressRing(visible=False)
-    repo_error = ft.Text("", color=ft.Colors.ERROR)
-    create_repo_name_field = ft.TextField(label="New repository name", width=320)
-    create_private_check = ft.Checkbox(label="Private repository", value=True)
+    repo_progress = ft.ProgressRing(visible=False, color=_ACCENT, stroke_width=2, width=20, height=20)
+    repo_error = ft.Text("", color=_ERROR, size=13)
+    create_repo_name_field = _styled_field("Repository name", width=320)
+    create_private_check = ft.Checkbox(
+        label="Private repository",
+        value=True,
+        active_color=_ACCENT,
+        label_style=ft.TextStyle(color=_TEXT_MUTED, size=13),
+    )
 
     def load_repos():
         token = token_holder.get("value") or load_config().get("github_token") or ""
@@ -203,7 +421,7 @@ def main(page: ft.Page) -> None:
     def on_select_repo(e):
         key = repos_dropdown.value
         if not key:
-            repo_error.value = "Select a repository."
+            repo_error.value = "Select a repository first."
             page.update()
             return
         parts = key.split("|", 2)
@@ -264,18 +482,20 @@ def main(page: ft.Page) -> None:
                 page.update()
 
         dlg = ft.AlertDialog(
-            title=ft.Text("Create new repository"),
-            content=ft.Column(
-                [
-                    create_repo_name_field,
-                    create_private_check,
-                ],
-                tight=True,
+            bgcolor=_SURFACE,
+            title=_heading("Create new repository", size=18),
+            content=ft.Container(
+                ft.Column(
+                    [create_repo_name_field, ft.Container(height=8), create_private_check],
+                    tight=True,
+                ),
+                width=340,
             ),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda e2: page.close(dlg)),
-                ft.ElevatedButton("Create and open", on_click=do_create),
+                _ghost_btn("Cancel", on_click=lambda e2: page.close(dlg)),
+                _primary_btn("Create and open", on_click=do_create),
             ],
+            shape=ft.RoundedRectangleBorder(radius=10),
         )
         page.open(dlg)
         page.update()
@@ -287,46 +507,71 @@ def main(page: ft.Page) -> None:
 
     repo_content = ft.Column(
         [
-            ft.Text("Select repository", size=24, weight=ft.FontWeight.BOLD),
-            ft.Text("Choose where to store your book, or create a new repository."),
-            ft.Container(height=20),
-            ft.Row([repos_dropdown, repo_progress], alignment=ft.MainAxisAlignment.START),
-            ft.Container(height=8),
+            ft.Container(height=32),
             ft.Row(
                 [
-                    ft.ElevatedButton("Use selected repository", on_click=on_select_repo),
-                    ft.OutlinedButton("Create new repository", on_click=open_create_repo_dialog),
+                    ft.Container(
+                        ft.Column(
+                            [
+                                ft.Row([
+                                    ft.Text("✦", size=20, color=_ACCENT),
+                                    ft.Container(width=8),
+                                    _heading("Select repository", size=20),
+                                ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                                ft.Container(height=6),
+                                _body("Choose where to store your book, or create a new repository."),
+                                ft.Container(height=24),
+                                ft.Row([repos_dropdown, repo_progress], spacing=12,
+                                       vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                                ft.Container(height=16),
+                                ft.Row(
+                                    [
+                                        _primary_btn("Open repository", on_click=on_select_repo),
+                                        ft.Container(width=8),
+                                        _secondary_btn("Create new", on_click=open_create_repo_dialog),
+                                    ],
+                                ),
+                                ft.Container(height=12),
+                                repo_error,
+                                ft.Container(height=32),
+                                _divider(),
+                                ft.Container(height=12),
+                                _ghost_btn("Sign out", on_click=sign_out,
+                                           icon=ft.Icons.LOGOUT, color=_ERROR),
+                            ],
+                            spacing=0,
+                        ),
+                        width=520,
+                        padding=36,
+                        bgcolor=_SURFACE,
+                        border_radius=12,
+                        border=ft.border.all(1, _BORDER),
+                    )
                 ],
-            ),
-            ft.Container(height=8),
-            repo_error,
-            ft.Container(expand=True),
-            ft.Divider(),
-            ft.TextButton(
-                "Sign out",
-                icon=ft.Icons.LOGOUT,
-                on_click=sign_out,
-                style=ft.ButtonStyle(color=ft.Colors.ERROR),
+                alignment=ft.MainAxisAlignment.CENTER,
             ),
         ],
         scroll=ft.ScrollMode.AUTO,
         expand=True,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
-    # --- Editor view ---
+    # ── Editor view ──────────────────────────────────────────────────────────
     repo_path_holder = {"value": get_repo_path(config)}
-    chapter_list = ft.Column([], scroll=ft.ScrollMode.AUTO, expand=True)
-    editor = ft.TextField(
+    chapter_list = ft.Column([], scroll=ft.ScrollMode.AUTO, expand=True, spacing=2)
+
+    editor = _code_field(
+        label="",
         multiline=True,
         min_lines=20,
         expand=True,
-        text_style=ft.TextStyle(font_family="monospace"),
         on_change=lambda e: _set_dirty(True),
     )
 
     def _set_dirty(dirty: bool):
         editor_dirty["value"] = dirty
-        save_btn_label.value = "Save (unsaved)" if dirty else "Save"
+        save_btn_label.value = "Save •" if dirty else "Save"
+        save_btn_label.color = _ACCENT if dirty else _TEXT
         page.update()
 
     def refresh_chapter_list():
@@ -340,12 +585,20 @@ def main(page: ft.Page) -> None:
         items = list_chapters_with_versions(path)
         chapter_list.controls.clear()
         for num, ver, md_path in items:
+            is_active = (current_md_path["value"] == md_path)
             chapter_list.controls.append(
-                ft.ListTile(
-                    title=ft.Text(f"Chapter {num}"),
-                    subtitle=ft.Text(ver),
+                ft.Container(
+                    ft.Column([
+                        ft.Text(f"Chapter {num}", size=13, color=_TEXT if is_active else _TEXT_MUTED,
+                                weight=ft.FontWeight.W_500 if is_active else ft.FontWeight.NORMAL),
+                        ft.Text(ver, size=11, color=_ACCENT if is_active else _TEXT_MUTED),
+                    ], spacing=2, tight=True),
                     data=md_path,
                     on_click=lambda e, p=md_path: load_chapter_file(p),
+                    padding=ft.padding.symmetric(horizontal=10, vertical=8),
+                    border_radius=6,
+                    bgcolor=_SURFACE2 if is_active else None,
+                    ink=True,
                 )
             )
         page.update()
@@ -357,6 +610,7 @@ def main(page: ft.Page) -> None:
         except Exception:
             editor.value = ""
         _set_dirty(False)
+        refresh_chapter_list()  # re-render to highlight active chapter
         page.update()
 
     def save_current(e):
@@ -366,7 +620,6 @@ def main(page: ft.Page) -> None:
             page.update()
             return
 
-        # Write file immediately on main thread so content is flushed before push
         try:
             Path(path).write_text(editor.value or "", encoding="utf-8")
         except Exception as ex:
@@ -376,9 +629,9 @@ def main(page: ft.Page) -> None:
 
         _set_dirty(False)
 
-        # Disable button and show saving state while push runs in background
         save_btn.disabled = True
         save_btn_label.value = "Saving…"
+        save_btn_label.color = _TEXT_MUTED
         page.update()
 
         def _push():
@@ -398,6 +651,7 @@ def main(page: ft.Page) -> None:
             finally:
                 save_btn.disabled = False
                 save_btn_label.value = "Save"
+                save_btn_label.color = _TEXT
                 page.update()
 
         threading.Thread(target=_push, daemon=True).start()
@@ -448,7 +702,8 @@ def main(page: ft.Page) -> None:
             page.open(ft.SnackBar(ft.Text("No project loaded.")))
             page.update()
             return
-        after = ft.TextField(label="Increment chapters after number", keyboard_type=ft.KeyboardType.NUMBER)
+        after = _styled_field("Increment chapters after number",
+                               keyboard_type=ft.KeyboardType.NUMBER)
 
         def do_increment(e2):
             try:
@@ -463,12 +718,14 @@ def main(page: ft.Page) -> None:
             page.update()
 
         dlg = ft.AlertDialog(
-            title=ft.Text("Increment chapter numbers"),
-            content=after,
+            bgcolor=_SURFACE,
+            title=_heading("Increment chapter numbers", size=18),
+            content=ft.Container(after, width=320),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda e2: page.close(dlg)),
-                ft.ElevatedButton("OK", on_click=do_increment),
+                _ghost_btn("Cancel", on_click=lambda e2: page.close(dlg)),
+                _primary_btn("OK", on_click=do_increment),
             ],
+            shape=ft.RoundedRectangleBorder(radius=10),
         )
         page.open(dlg)
         page.update()
@@ -513,12 +770,13 @@ def main(page: ft.Page) -> None:
             return
         if not check_pandoc_available():
             page.open(ft.SnackBar(
-                ft.Text("Pandoc is not installed. Install pandoc and a LaTeX engine (e.g. pdflatex) to generate PDFs."),
+                ft.Text("Pandoc is not installed. Install pandoc and a LaTeX engine to generate PDFs."),
             ))
             page.update()
             return
-        title_field = ft.TextField(label="Book title", value="Book", width=320)
-        author_field = ft.TextField(label="Author", value="", width=320)
+        title_field = _styled_field("Book title", width=320)
+        title_field.value = "Book"
+        author_field = _styled_field("Author", width=320)
 
         def do_pdf(e2):
             try:
@@ -534,93 +792,175 @@ def main(page: ft.Page) -> None:
             page.update()
 
         dlg = ft.AlertDialog(
-            title=ft.Text("Generate PDF"),
-            content=ft.Column([title_field, author_field], tight=True),
+            bgcolor=_SURFACE,
+            title=_heading("Generate PDF", size=18),
+            content=ft.Container(
+                ft.Column([title_field, ft.Container(height=8), author_field], tight=True),
+                width=340,
+            ),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda e2: page.close(dlg)),
-                ft.ElevatedButton("Generate", on_click=do_pdf),
+                _ghost_btn("Cancel", on_click=lambda e2: page.close(dlg)),
+                _primary_btn("Generate", on_click=do_pdf),
             ],
+            shape=ft.RoundedRectangleBorder(radius=10),
         )
         page.open(dlg)
         page.update()
 
-    save_btn_label = ft.Text("Save")
-    save_btn = ft.ElevatedButton(content=save_btn_label, on_click=lambda e: save_current(e))
+    # Save button (uses a Text child so we can mutate label)
+    save_btn_label = ft.Text("Save", color=_TEXT, size=13, weight=ft.FontWeight.W_500)
+    save_btn = ft.ElevatedButton(
+        content=save_btn_label,
+        on_click=lambda e: save_current(e),
+        style=ft.ButtonStyle(
+            bgcolor={
+                ft.ControlState.DEFAULT: _ACCENT,
+                ft.ControlState.HOVERED: _ACCENT_HOVER,
+                ft.ControlState.DISABLED: _SURFACE2,
+            },
+            shape=ft.RoundedRectangleBorder(radius=6),
+            elevation=0,
+            padding=ft.padding.symmetric(horizontal=16, vertical=8),
+        ),
+    )
 
     def go_setup(e):
         token_holder["value"] = load_config().get("github_token", "")
         page.go("/repo")
         page.update()
 
-    toolbar = ft.Row(
-        [
-            ft.ElevatedButton("New chapter", on_click=tool_new_chapter),
-            ft.PopupMenuButton(
-                content=ft.Text("Bump version"),
-                items=[
-                    ft.PopupMenuItem(content=ft.Text("Minor"), on_click=lambda e: tool_bump(e, "minor")),
-                    ft.PopupMenuItem(content=ft.Text("Patch"), on_click=lambda e: tool_bump(e, "patch")),
-                    ft.PopupMenuItem(content=ft.Text("Major"), on_click=lambda e: tool_bump(e, "major")),
-                ],
-            ),
-            ft.ElevatedButton("Increment chapters", on_click=tool_increment),
-            ft.ElevatedButton("Word count", on_click=tool_word_count),
-            ft.ElevatedButton("Format", on_click=tool_format),
-            ft.ElevatedButton("Generate PDF", on_click=tool_generate_pdf),
-            ft.Container(expand=True),
-            ft.IconButton(ft.Icons.SETTINGS, tooltip="Settings", on_click=go_setup),
-            save_btn,
-        ],
+    # Toolbar
+    toolbar = ft.Container(
+        ft.Row(
+            [
+                # Logo mark
+                ft.Container(
+                    ft.Text("✦", size=16, color=_ACCENT),
+                    margin=ft.margin.only(right=4),
+                ),
+                ft.Text("Book Editor", size=13, color=_TEXT_MUTED, weight=ft.FontWeight.W_500),
+                ft.Container(
+                    ft.VerticalDivider(width=1, color=_BORDER),
+                    height=20,
+                    margin=ft.margin.symmetric(horizontal=8),
+                ),
+                _toolbar_btn("New chapter", on_click=tool_new_chapter),
+                ft.PopupMenuButton(
+                    content=ft.Container(
+                        ft.Row([
+                            ft.Text("Bump version", size=13, color=_TEXT_MUTED),
+                            ft.Icon(ft.Icons.ARROW_DROP_DOWN, color=_TEXT_MUTED, size=16),
+                        ], spacing=2),
+                        padding=ft.padding.symmetric(horizontal=10, vertical=6),
+                        border_radius=4,
+                        ink=True,
+                    ),
+                    items=[
+                        ft.PopupMenuItem(content=ft.Text("Minor", color=_TEXT, size=13),
+                                         on_click=lambda e: tool_bump(e, "minor")),
+                        ft.PopupMenuItem(content=ft.Text("Patch", color=_TEXT, size=13),
+                                         on_click=lambda e: tool_bump(e, "patch")),
+                        ft.PopupMenuItem(content=ft.Text("Major", color=_TEXT, size=13),
+                                         on_click=lambda e: tool_bump(e, "major")),
+                    ],
+                ),
+                _toolbar_btn("Increment", on_click=tool_increment),
+                _toolbar_btn("Word count", on_click=tool_word_count),
+                _toolbar_btn("Format", on_click=tool_format),
+                _toolbar_btn("PDF", on_click=tool_generate_pdf),
+                ft.Container(expand=True),
+                ft.IconButton(
+                    ft.Icons.SETTINGS_OUTLINED,
+                    tooltip="Repository settings",
+                    on_click=go_setup,
+                    icon_color=_TEXT_MUTED,
+                    hover_color=_SURFACE2,
+                    icon_size=18,
+                ),
+                ft.Container(width=4),
+                save_btn,
+            ],
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        bgcolor=_SURFACE,
+        border=ft.border.only(bottom=ft.BorderSide(1, _BORDER)),
+        padding=ft.padding.symmetric(horizontal=16, vertical=8),
+    )
+
+    # Sidebar
+    sidebar = ft.Container(
+        ft.Column(
+            [
+                ft.Container(
+                    ft.Row([
+                        ft.Text("CHAPTERS", size=10, color=_TEXT_MUTED,
+                                weight=ft.FontWeight.W_600, letter_spacing=1.2),
+                    ]),
+                    padding=ft.padding.symmetric(horizontal=10, vertical=8),
+                ),
+                _divider(),
+                ft.Container(height=4),
+                chapter_list,
+            ],
+            spacing=0,
+            expand=True,
+        ),
+        width=200,
+        bgcolor=_SURFACE,
+        border=ft.border.only(right=ft.BorderSide(1, _BORDER)),
     )
 
     editor_content = ft.Column(
         [
             toolbar,
-            ft.Container(height=8),
             ft.Row(
                 [
+                    sidebar,
                     ft.Container(
-                        ft.Column(
-                            [
-                                ft.Text("Chapters", weight=ft.FontWeight.BOLD),
-                                chapter_list,
-                            ],
-                            expand=True,
-                        ),
-                        width=220,
-                        border=ft.border.all(1, ft.Colors.OUTLINE),
-                        border_radius=8,
-                        padding=8,
+                        editor,
+                        expand=True,
+                        bgcolor=_BG,
+                        padding=ft.padding.all(0),
                     ),
-                    ft.Container(editor, expand=True, margin=ft.margin.only(left=8)),
                 ],
                 expand=True,
+                spacing=0,
             ),
         ],
         expand=True,
+        spacing=0,
     )
 
+    # ── Routing ──────────────────────────────────────────────────────────────
     def route_change(e):
         page.views.clear()
         cfg = load_config()
         repo_path_holder["value"] = get_repo_path(cfg)
 
         if page.route == "/signin":
-            page.views.append(ft.View("/signin", [signin_content], padding=24))
+            page.views.append(
+                ft.View("/signin", [signin_content], bgcolor=_BG, padding=24)
+            )
         elif page.route == "/repo":
-            page.views.append(ft.View("/repo", [repo_content], padding=24))
+            page.views.append(
+                ft.View("/repo", [repo_content], bgcolor=_BG, padding=24)
+            )
             on_repo_view_visible()
         elif page.route == "/editor":
             if repo_path_holder["value"]:
                 refresh_chapter_list()
-            page.views.append(ft.View("/editor", [editor_content], padding=16))
+            page.views.append(
+                ft.View("/editor", [editor_content], bgcolor=_BG, padding=0)
+            )
         else:
-            page.views.append(ft.View("/signin", [signin_content], padding=24))
+            page.views.append(
+                ft.View("/signin", [signin_content], bgcolor=_BG, padding=24)
+            )
         page.update()
 
     page.on_route_change = route_change
 
-    # Initial route: sign in → select repo → editor (or editor if path missing, go to repo)
+    # Initial route
     if not is_github_connected(config):
         page.route = "/signin"
     elif not has_repo_selected(config):
