@@ -1,7 +1,6 @@
 """GitHub API and clone operations for the app (auth, list repos, create repo, clone)."""
 
 import os
-import re
 import time
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
@@ -16,14 +15,15 @@ _ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
 _DEVICE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
 
 
+# Client ID for the Book Editor GitHub OAuth App.
+# This is NOT a secret — device flow requires no client secret.
+# Register your own OAuth App at github.com/settings/developers if forking.
+# Override at runtime by setting the GITHUB_CLIENT_ID environment variable.
+_OAUTH_CLIENT_ID = "YOUR_CLIENT_ID_HERE"
+
+
 def _client_id() -> str:
-    cid = os.environ.get("GITHUB_CLIENT_ID", "").strip()
-    if not cid:
-        raise RuntimeError(
-            "GITHUB_CLIENT_ID environment variable is not set. "
-            "Create a GitHub OAuth App and set this variable to its Client ID."
-        )
-    return cid
+    return os.environ.get("GITHUB_CLIENT_ID", _OAUTH_CLIENT_ID).strip()
 
 
 def start_device_flow() -> dict:
