@@ -60,10 +60,7 @@ Section "Pandoc" SecPandoc
     DetailPrint "Pandoc already installed — skipping."
   ${Else}
     DetailPrint "Installing Pandoc..."
-    ${TryWinget} "JohnMacFarlane.Pandoc" \
-      "$TEMP\pandoc-installer.msi" \
-      "https://github.com/jgm/pandoc/releases/latest/download/pandoc-3.6.2-windows-x86_64.msi" \
-      "/quiet /norestart"
+    ${TryWinget} "JohnMacFarlane.Pandoc" "$TEMP\pandoc-installer.msi" "https://github.com/jgm/pandoc/releases/latest/download/pandoc-3.6.2-windows-x86_64.msi" "/quiet /norestart"
   ${EndIf}
 SectionEnd
 
@@ -74,10 +71,7 @@ Section "MiKTeX (LaTeX)" SecMiKTeX
     DetailPrint "LaTeX already installed — skipping."
   ${Else}
     DetailPrint "Installing MiKTeX (this may take several minutes)..."
-    ${TryWinget} "MiKTeX.MiKTeX" \
-      "$TEMP\miktex-installer.exe" \
-      "https://miktex.org/download/ctan/systems/win32/miktex/setup/windows-x64/basic-miktex-24.1-x64.exe" \
-      "--unattended --shared=yes --auto-install=yes"
+    ${TryWinget} "MiKTeX.MiKTeX" "$TEMP\miktex-installer.exe" "https://miktex.org/download/ctan/systems/win32/miktex/setup/windows-x64/basic-miktex-24.1-x64.exe" "--unattended --shared=yes --auto-install=yes"
   ${EndIf}
 SectionEnd
 
@@ -88,10 +82,7 @@ Section "Git" SecGit
     DetailPrint "Git already installed — skipping."
   ${Else}
     DetailPrint "Installing Git..."
-    ${TryWinget} "Git.Git" \
-      "$TEMP\git-installer.exe" \
-      "https://github.com/git-for-windows/git/releases/latest/download/Git-2.47.1.2-64-bit.exe" \
-      "/VERYSILENT /NORESTART /NOCANCEL /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /COMPONENTS=icons,ext\reg\shellhere,assoc,assoc_sh"
+    ${TryWinget} "Git.Git" "$TEMP\git-installer.exe" "https://github.com/git-for-windows/git/releases/latest/download/Git-2.47.1.2-64-bit.exe" "/VERYSILENT /NORESTART /NOCANCEL /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /COMPONENTS=icons,ext\reg\shellhere,assoc,assoc_sh"
   ${EndIf}
 SectionEnd
 
