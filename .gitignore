@@ -25,3 +25,7 @@ dist/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Local dev scripts
+run.sh
+*.spec
