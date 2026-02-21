@@ -93,6 +93,7 @@ jobs:
           --name "BookEditor"
           --product-name "Book Editor"
           --file-description "A desktop app for writing books with GitHub version control"
+          -D
 
       # ── Windows: build NSIS installer ──
       - name: Install NSIS (Windows)

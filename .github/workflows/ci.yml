@@ -68,13 +68,14 @@ jobs:
           --name "BookEditor"
           --product-name "Book Editor"
           --file-description "A desktop app for writing books with GitHub version control"
+          -D
 
       - name: Confirm binary was produced (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if (-not (Test-Path dist\BookEditor.exe)) {
-            Write-Error "Expected dist\BookEditor.exe was not found"
+          if (-not (Test-Path dist\BookEditor\BookEditor.exe)) {
+            Write-Error "Expected dist\BookEditor\BookEditor.exe was not found"
             exit 1
           }
 

@@ -89,8 +89,9 @@ SectionEnd
 Section "Book Editor" SecApp
   SectionIn RO   ; required — cannot be deselected
 
+  ; Copy the entire onedir bundle produced by flet pack -D
   SetOutPath "$INSTDIR"
-  File "..\..\dist\BookEditor.exe"
+  File /r "..\..\dist\BookEditor\*.*"
 
   ; Start Menu shortcuts
   CreateDirectory "$SMPROGRAMS\Book Editor"
