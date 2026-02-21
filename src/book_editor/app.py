@@ -57,7 +57,7 @@ def main(page: ft.Page) -> None:
         hint_text="Create at GitHub → Settings → Developer settings → Personal access tokens",
         width=420,
     )
-    signin_error = ft.Text("", color=ft.colors.ERROR)
+    signin_error = ft.Text("", color=ft.Colors.ERROR)
 
     def on_signin(e):
         token = (token_field.value or "").strip()
@@ -100,7 +100,7 @@ def main(page: ft.Page) -> None:
         options=[],
     )
     repo_progress = ft.ProgressRing(visible=False)
-    repo_error = ft.Text("", color=ft.colors.ERROR)
+    repo_error = ft.Text("", color=ft.Colors.ERROR)
     create_repo_name_field = ft.TextField(label="New repository name", width=320)
     create_private_check = ft.Checkbox(label="Private repository", value=True)
 
@@ -458,7 +458,7 @@ def main(page: ft.Page) -> None:
             ft.ElevatedButton("Format", on_click=tool_format),
             ft.ElevatedButton("Generate PDF", on_click=tool_generate_pdf),
             ft.Container(expand=True),
-            ft.IconButton(ft.icons.SETTINGS, tooltip="Settings", on_click=go_setup),
+            ft.IconButton(ft.Icons.SETTINGS, tooltip="Settings", on_click=go_setup),
             ft.ElevatedButton("Save", on_click=save_current),
         ],
     )
@@ -483,7 +483,7 @@ def main(page: ft.Page) -> None:
                             expand=True,
                         ),
                         width=220,
-                        border=ft.border.all(1, ft.colors.OUTLINE),
+                        border=ft.border.all(1, ft.Colors.OUTLINE),
                         border_radius=8,
                         padding=8,
                     ),
