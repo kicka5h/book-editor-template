@@ -176,7 +176,7 @@ def main(page: ft.Page) -> None:
                 repos = load_repos()
                 repo_progress.visible = False
                 repos_dropdown.options = [
-                    ft.dropdown.Option(f"{owner}/{name}", key=f"{owner}|{name}|{url}")
+                    ft.dropdown.Option(key=f"{owner}|{name}|{url}", text=f"{owner}/{name}")
                     for owner, name, url in repos
                 ]
                 if not repos_dropdown.options:
