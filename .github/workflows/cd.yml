@@ -117,8 +117,8 @@ jobs:
             -OutFile "$env:TEMP\tinytex.zip"
           Expand-Archive "$env:TEMP\tinytex.zip" -DestinationPath "$env:TEMP\tinytex-extract" -Force
           $tinytexDir = (Get-ChildItem "$env:TEMP\tinytex-extract" | Select-Object -First 1).FullName
-          $env:PATH = "$tinytexDir\bin\win64;$env:PATH"
-          tlmgr install geometry fancyhdr hyperref xcolor caption float listings lm booktabs
+          $tlmgr = "$tinytexDir\bin\win64\tlmgr.bat"
+          & $tlmgr install geometry fancyhdr hyperref xcolor caption float listings lm booktabs
           Copy-Item -Recurse -Force "$tinytexDir" "dist\Beckit\tinytex"
 
       - name: Build app with flet pack (macOS)
