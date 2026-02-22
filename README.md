@@ -48,34 +48,7 @@ Your token and repository settings are stored in your system's app config direct
 | macOS | `~/Library/Application Support/beckit/` |
 | Windows | `%APPDATA%\beckit\` |
 
----
-
-## Optional: PDF Generation
-
-The **Generate PDF** button and the release workflow both require **Pandoc** and a LaTeX engine to be installed on your machine separately — they are not bundled with the app.
-
-### macOS
-
-```bash
-brew install pandoc mactex-no-gui
-```
-
-Or download the installers manually:
-- [Pandoc](https://pandoc.org/installing.html)
-- [MacTeX](https://tug.org/mactex/) (full) or [BasicTeX](https://tug.org/mactex/morepackages.html) (smaller)
-
-### Windows
-
-```powershell
-winget install JohnMacFarlane.Pandoc
-winget install MiKTeX.MiKTeX
-```
-
-Or download manually:
-- [Pandoc for Windows](https://pandoc.org/installing.html)
-- [MiKTeX](https://miktex.org/download) (recommended LaTeX distribution for Windows)
-
-After installing, restart Beckit and the PDF button will be fully functional.
+PDF export is built in — no separate tools required.
 
 ---
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "beckit"
-version = "2.0.0"
+version = "3.0.0"
 description = "Lightweight cross-platform book writing app with GitHub sync and chapter versioning"
 readme = "README.md"
 license = { text = "MIT" }
