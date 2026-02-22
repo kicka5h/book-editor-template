@@ -133,11 +133,11 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           ARCH=$(uname -m)
-          curl -fsSL "https://github.com/jgm/pandoc/releases/download/3.6.2/pandoc-3.6.2-${ARCH}.zip" \
+          curl -fsSL "https://github.com/jgm/pandoc/releases/download/3.6.2/pandoc-3.6.2-${ARCH}-macOS.zip" \
                -o /tmp/pandoc.zip
           unzip -q /tmp/pandoc.zip -d /tmp/pandoc-bin
           mkdir -p dist/Beckit.app/Contents/Resources/bin
-          cp /tmp/pandoc-bin/pandoc-3.6.2/bin/pandoc \
+          cp /tmp/pandoc-bin/pandoc-3.6.2-${ARCH}/bin/pandoc \
              dist/Beckit.app/Contents/Resources/bin/pandoc
           chmod +x dist/Beckit.app/Contents/Resources/bin/pandoc
 
