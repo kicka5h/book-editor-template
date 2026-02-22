@@ -97,6 +97,30 @@ jobs:
           --file-description "A desktop app for writing books with GitHub version control"
           -D
 
+      - name: Download and embed Pandoc (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://github.com/jgm/pandoc/releases/download/3.6.2/pandoc-3.6.2-windows-x86_64.zip" `
+            -OutFile "$env:TEMP\pandoc.zip"
+          Expand-Archive "$env:TEMP\pandoc.zip" -DestinationPath "$env:TEMP\pandoc-bin" -Force
+          New-Item -ItemType Directory -Force -Path "dist\Beckit\bin" | Out-Null
+          Copy-Item "$env:TEMP\pandoc-bin\pandoc-3.6.2\pandoc.exe" "dist\Beckit\bin\pandoc.exe"
+
+      - name: Download, pre-seed, and embed TinyTeX (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://github.com/rstudio/tinytex-releases/releases/download/daily/TinyTeX-1.zip" `
+            -OutFile "$env:TEMP\tinytex.zip"
+          Expand-Archive "$env:TEMP\tinytex.zip" -DestinationPath "$env:TEMP\tinytex-extract" -Force
+          $tinytexDir = (Get-ChildItem "$env:TEMP\tinytex-extract" | Select-Object -First 1).FullName
+          $env:PATH = "$tinytexDir\bin\win64;$env:PATH"
+          tlmgr install geometry fancyhdr hyperref xcolor caption float listings lm booktabs
+          Copy-Item -Recurse -Force "$tinytexDir" "dist\Beckit\tinytex"
+
       - name: Build app with flet pack (macOS)
         if: runner.os == 'macOS'
         run: >
@@ -104,6 +128,31 @@ jobs:
           --name "Beckit"
           --product-name "Beckit"
           --file-description "A desktop app for writing books with GitHub version control"
+
+      - name: Download and embed Pandoc (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ARCH=$(uname -m)
+          curl -fsSL "https://github.com/jgm/pandoc/releases/download/3.6.2/pandoc-3.6.2-${ARCH}.zip" \
+               -o /tmp/pandoc.zip
+          unzip -q /tmp/pandoc.zip -d /tmp/pandoc-bin
+          mkdir -p dist/Beckit.app/Contents/Resources/bin
+          cp /tmp/pandoc-bin/pandoc-3.6.2/bin/pandoc \
+             dist/Beckit.app/Contents/Resources/bin/pandoc
+          chmod +x dist/Beckit.app/Contents/Resources/bin/pandoc
+
+      - name: Download, pre-seed, and embed TinyTeX (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          curl -fsSL https://github.com/rstudio/tinytex-releases/releases/download/daily/TinyTeX-1.tgz \
+               -o /tmp/tinytex.tgz
+          mkdir -p /tmp/tinytex-extract
+          tar -xzf /tmp/tinytex.tgz -C /tmp/tinytex-extract
+          TINYTEX_DIR="/tmp/tinytex-extract/.TinyTeX"
+          export PATH="$TINYTEX_DIR/bin/universal-darwin:$PATH"
+          tlmgr install geometry fancyhdr hyperref xcolor caption float listings lm booktabs
+          mkdir -p dist/Beckit.app/Contents/Resources/tinytex
+          cp -R "$TINYTEX_DIR/." dist/Beckit.app/Contents/Resources/tinytex/
 
       - name: Patch Info.plist bundle name (macOS)
         if: runner.os == 'macOS'
@@ -191,8 +240,7 @@ jobs:
             **macOS**
             1. Download `Beckit-macOS-${{ needs.version.outputs.version }}.pkg`
             2. Double-click the `.pkg` file and follow the installer wizard
-            3. The installer will set up Pandoc, BasicTeX (LaTeX), and Git automatically
-            4. On first launch, right-click → Open if macOS warns about an unverified developer
+            3. On first launch, right-click → Open if macOS warns about an unverified developer
 
             > **Note:** The installer is unsigned. If Gatekeeper blocks it, right-click the `.pkg` → Open,
             > or temporarily allow it via System Settings → Privacy & Security.
@@ -200,10 +248,9 @@ jobs:
             **Windows**
             1. Download `Beckit-Windows-${{ needs.version.outputs.version }}-installer.exe`
             2. Run the installer (Administrator rights required)
-            3. The installer will set up Pandoc, MiKTeX (LaTeX), and Git automatically
-            4. Launch **Beckit** from the Start Menu or Desktop shortcut
+            3. Launch **Beckit** from the Start Menu or Desktop shortcut
 
             ### Requirements
             - A GitHub account (sign-in uses GitHub Device Flow — no Personal Access Token needed)
-            - Internet connection required during installation (for dependency downloads)
+            - PDF export is built in — Pandoc and pdflatex are bundled, no separate install needed
           files: release-assets/*

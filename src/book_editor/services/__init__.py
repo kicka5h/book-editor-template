@@ -20,7 +20,7 @@ from book_editor.services.github_app import (
     start_device_flow,
     poll_device_flow,
 )
-from book_editor.services.pdf_build import build_pdf, get_latest_chapter_files, check_pandoc_available
+from book_editor.services.pdf_build import build_pdf, get_latest_chapter_files, check_pandoc_available, check_pdflatex_available
 from book_editor.services.planning import (
     planning_dir,
     ensure_planning_structure,
@@ -52,6 +52,7 @@ __all__ = [
     "build_pdf",
     "get_latest_chapter_files",
     "check_pandoc_available",
+    "check_pdflatex_available",
     "planning_dir",
     "ensure_planning_structure",
     "list_planning_files",

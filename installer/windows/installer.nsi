@@ -2,6 +2,7 @@
 ; Beckit Windows Installer
 ; Build with: makensis /DVERSION=X.Y.Z installer.nsi
 ; Requires: NSIS 3.x (no extra plugins needed)
+; Pandoc and TinyTeX (pdflatex) are bundled inside dist\Beckit\ — no downloads needed.
 ; ─────────────────────────────────────────────────────────────────────────────
 
 !ifndef VERSION
@@ -34,7 +35,7 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_LANGUAGE "English"
 
 ; ── Helper macro: try winget, fall back to direct download via PowerShell ─────
-; Usage: ${TryWinget} "Publisher.PackageId" "$TEMP\fallback.exe" "https://..." "/SILENT"
+; Used only for Git (the one remaining optional system dependency).
 !macro _TryWinget PKG_ID FALLBACK_PATH FALLBACK_URL SILENT_FLAG
   nsExec::ExecToLog 'winget install --id ${PKG_ID} --exact --silent --accept-package-agreements --accept-source-agreements'
   Pop $0
@@ -53,29 +54,8 @@ SetCompressor /SOLID lzma
 
 ; ── Sections ──────────────────────────────────────────────────────────────────
 
-Section "Pandoc" SecPandoc
-  nsExec::ExecToLog 'pandoc --version'
-  Pop $0
-  ${If} $0 == 0
-    DetailPrint "Pandoc already installed — skipping."
-  ${Else}
-    DetailPrint "Installing Pandoc..."
-    ${TryWinget} "JohnMacFarlane.Pandoc" "$TEMP\pandoc-installer.msi" "https://github.com/jgm/pandoc/releases/latest/download/pandoc-3.6.2-windows-x86_64.msi" "/quiet /norestart"
-  ${EndIf}
-SectionEnd
-
-Section "MiKTeX (LaTeX)" SecMiKTeX
-  nsExec::ExecToLog 'pdflatex --version'
-  Pop $0
-  ${If} $0 == 0
-    DetailPrint "LaTeX already installed — skipping."
-  ${Else}
-    DetailPrint "Installing MiKTeX (this may take several minutes)..."
-    ${TryWinget} "MiKTeX.MiKTeX" "$TEMP\miktex-installer.exe" "https://miktex.org/download/ctan/systems/win32/miktex/setup/windows-x64/basic-miktex-24.1-x64.exe" "--unattended --shared=yes --auto-install=yes"
-  ${EndIf}
-SectionEnd
-
 Section "Git" SecGit
+  ; Git is required for GitHub sync. Pandoc and pdflatex are bundled — no install needed.
   nsExec::ExecToLog 'git --version'
   Pop $0
   ${If} $0 == 0
@@ -90,6 +70,7 @@ Section "Beckit" SecApp
   SectionIn RO   ; required — cannot be deselected
 
   ; Copy the entire onedir bundle produced by flet pack -D
+  ; This includes bin\pandoc.exe and tinytex\ (pre-seeded pdflatex) added at build time.
   SetOutPath "$INSTDIR"
   File /r "..\..\dist\Beckit\*.*"
 

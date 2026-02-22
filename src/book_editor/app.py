@@ -39,6 +39,7 @@ from book_editor.services import (
     poll_device_flow,
     build_pdf,
     check_pandoc_available,
+    check_pdflatex_available,
     ensure_planning_structure,
     list_planning_files,
     create_planning_file,
@@ -1165,7 +1166,13 @@ def main(page: ft.Page) -> None:
             return
         if not check_pandoc_available():
             page.open(ft.SnackBar(
-                ft.Text("Pandoc is not installed. Install pandoc and a LaTeX engine to generate PDFs."),
+                ft.Text("PDF tools not found. Please reinstall Beckit."),
+            ))
+            page.update()
+            return
+        if not check_pdflatex_available():
+            page.open(ft.SnackBar(
+                ft.Text("pdflatex not found. Please reinstall Beckit."),
             ))
             page.update()
             return
