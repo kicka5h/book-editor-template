@@ -14,7 +14,7 @@ def config_dir() -> Path:
         base = os.path.expanduser("~/Library/Application Support")
     else:
         base = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
-    return Path(base) / "book-editor"
+    return Path(base) / "beckit"
 
 
 def config_file() -> Path:

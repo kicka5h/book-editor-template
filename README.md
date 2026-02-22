@@ -1,16 +1,16 @@
 ## Download and Install the Desktop App
 
-The Book Editor desktop app is distributed as a prebuilt installer — no Python or developer tools required. Download the version for your platform from the [latest release](../../releases/latest). This app was built with the help of Claude.
+Beckit is distributed as a prebuilt installer — no Python or developer tools required. Download the version for your platform from the [latest release](../../releases/latest). This app was built with the help of Claude.
 
 ### macOS
 
 **Requirements:** macOS 11 (Big Sur) or later
 
-1. Go to the [latest release](../../releases/latest) and download `BookEditor-macOS-<version>.dmg`
+1. Go to the [latest release](../../releases/latest) and download `Beckit-macOS-<version>.dmg`
 2. Open the downloaded `.dmg` file
-3. In the window that appears, drag **Book Editor** into your **Applications** folder
+3. In the window that appears, drag **Beckit** into your **Applications** folder
 4. Eject the disk image (drag it to Trash or right-click → Eject)
-5. Open **Launchpad** or your **Applications** folder and launch **Book Editor**
+5. Open **Launchpad** or your **Applications** folder and launch **Beckit**
 
 > **"App can't be opened because it is from an unidentified developer"**
 > This appears because the app is not yet signed with an Apple Developer certificate.
@@ -22,31 +22,31 @@ The Book Editor desktop app is distributed as a prebuilt installer — no Python
 
 **Requirements:** Windows 10 or later (64-bit)
 
-1. Go to the [latest release](../../releases/latest) and download `BookEditor-Windows-<version>.zip`
-2. Right-click the zip file and select **Extract All…** — choose a permanent location (e.g. `C:\Program Files\BookEditor` or a folder on your Desktop)
-3. Open the extracted folder and double-click **BookEditor.exe** to launch the app
+1. Go to the [latest release](../../releases/latest) and download `Beckit-Windows-<version>.zip`
+2. Right-click the zip file and select **Extract All…** — choose a permanent location (e.g. `C:\Program Files\Beckit` or a folder on your Desktop)
+3. Open the extracted folder and double-click **Beckit.exe** to launch the app
 
 > **Windows Defender SmartScreen warning ("Windows protected your PC")**
 > This appears because the app is not yet code-signed. Click **More info** → **Run anyway** to proceed.
 
-> **Tip:** Right-click `BookEditor.exe` → **Send to** → **Desktop (create shortcut)** for easier access.
+> **Tip:** Right-click `Beckit.exe` → **Send to** → **Desktop (create shortcut)** for easier access.
 
 ---
 
 ## First Launch
 
-Regardless of platform, the first time you open the app you will be asked to connect your GitHub account:
+Regardless of platform, the first time you open Beckit you will be asked to connect your GitHub account:
 
 1. [Create a GitHub Personal Access Token](https://github.com/settings/tokens/new) with the **`repo`** scope (classic token)
 2. Paste it into the sign-in prompt and press **Connect**
-3. Select an existing repository to use as your book, or create a new one — the app will clone it locally and set up the `Chapters/` structure automatically
+3. Select an existing repository to use as your book, or create a new one — Beckit will clone it locally and set up the `Chapters/` structure automatically
 
 Your token and repository settings are stored in your system's app config directory:
 
 | Platform | Config location |
 |---|---|
-| macOS | `~/Library/Application Support/book-editor/` |
-| Windows | `%APPDATA%\book-editor\` |
+| macOS | `~/Library/Application Support/beckit/` |
+| Windows | `%APPDATA%\beckit\` |
 
 ---
 
@@ -75,7 +75,7 @@ Or download manually:
 - [Pandoc for Windows](https://pandoc.org/installing.html)
 - [MiKTeX](https://miktex.org/download) (recommended LaTeX distribution for Windows)
 
-After installing, restart the Book Editor app and the PDF button will be fully functional.
+After installing, restart Beckit and the PDF button will be fully functional.
 
 ---
 
@@ -96,7 +96,7 @@ source .venv/bin/activate
 .venv\Scripts\activate
 
 pip install -e .
-python -m book_editor     # or: book-editor
+python -m book_editor     # or: beckit
 ```
 
 To install dev dependencies and run tests:

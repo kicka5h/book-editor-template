@@ -15,7 +15,7 @@ _ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
 _DEVICE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
 
 
-# Client ID for the Book Editor GitHub OAuth App.
+# Client ID for the Beckit GitHub OAuth App.
 # This is NOT a secret — device flow requires no client secret.
 # Register your own OAuth App at github.com/settings/developers if forking.
 # Override at runtime by setting the GITHUB_CLIENT_ID environment variable.

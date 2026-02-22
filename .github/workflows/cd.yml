@@ -64,10 +64,10 @@ jobs:
         include:
           - os: windows-latest
             platform_name: Windows
-            artifact_name: BookEditor-Windows
+            artifact_name: Beckit-Windows
           - os: macos-latest
             platform_name: macOS
-            artifact_name: BookEditor-macOS
+            artifact_name: Beckit-macOS
 
     runs-on: ${{ matrix.os }}
 
@@ -92,8 +92,8 @@ jobs:
         shell: pwsh
         run: >
           flet pack src/book_editor/__main__.py
-          --name "BookEditor"
-          --product-name "Book Editor"
+          --name "Beckit"
+          --product-name "Beckit"
           --file-description "A desktop app for writing books with GitHub version control"
           -D
 
@@ -101,8 +101,8 @@ jobs:
         if: runner.os == 'macOS'
         run: >
           flet pack src/book_editor/__main__.py
-          --name "BookEditor"
-          --product-name "Book Editor"
+          --name "Beckit"
+          --product-name "Beckit"
           --file-description "A desktop app for writing books with GitHub version control"
 
       # ── Windows: build NSIS installer ──
@@ -133,7 +133,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: installer\windows\BookEditor-Windows-${{ needs.version.outputs.version }}-installer.exe
+          path: installer\windows\Beckit-Windows-${{ needs.version.outputs.version }}-installer.exe
           retention-days: 7
 
       - name: Upload macOS installer artifact
@@ -141,7 +141,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: dist/BookEditor-macOS-${{ needs.version.outputs.version }}.pkg
+          path: dist/Beckit-macOS-${{ needs.version.outputs.version }}.pkg
           retention-days: 7
 
   # ─────────────────────────────────────────────
@@ -171,17 +171,17 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.tag }}
-          name: "Book Editor ${{ needs.version.outputs.tag }}"
+          name: "Beckit ${{ needs.version.outputs.tag }}"
           draft: false
           prerelease: false
           generate_release_notes: true
           body: |
-            ## Book Editor ${{ needs.version.outputs.tag }}
+            ## Beckit ${{ needs.version.outputs.tag }}
 
             ### Installation
 
             **macOS**
-            1. Download `BookEditor-macOS-${{ needs.version.outputs.version }}.pkg`
+            1. Download `Beckit-macOS-${{ needs.version.outputs.version }}.pkg`
             2. Double-click the `.pkg` file and follow the installer wizard
             3. The installer will set up Pandoc, BasicTeX (LaTeX), and Git automatically
             4. On first launch, right-click → Open if macOS warns about an unverified developer
@@ -190,10 +190,10 @@ jobs:
             > or temporarily allow it via System Settings → Privacy & Security.
 
             **Windows**
-            1. Download `BookEditor-Windows-${{ needs.version.outputs.version }}-installer.exe`
+            1. Download `Beckit-Windows-${{ needs.version.outputs.version }}-installer.exe`
             2. Run the installer (Administrator rights required)
             3. The installer will set up Pandoc, MiKTeX (LaTeX), and Git automatically
-            4. Launch **Book Editor** from the Start Menu or Desktop shortcut
+            4. Launch **Beckit** from the Start Menu or Desktop shortcut
 
             ### Requirements
             - A GitHub account (sign-in uses GitHub Device Flow — no Personal Access Token needed)

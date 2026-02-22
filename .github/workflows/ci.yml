@@ -67,8 +67,8 @@ jobs:
         shell: pwsh
         run: >
           flet pack src/book_editor/__main__.py
-          --name "BookEditor"
-          --product-name "Book Editor"
+          --name "Beckit"
+          --product-name "Beckit"
           --file-description "A desktop app for writing books with GitHub version control"
           -D
 
@@ -76,19 +76,19 @@ jobs:
         if: runner.os == 'macOS'
         run: >
           flet pack src/book_editor/__main__.py
-          --name "BookEditor"
-          --product-name "Book Editor"
+          --name "Beckit"
+          --product-name "Beckit"
           --file-description "A desktop app for writing books with GitHub version control"
 
       - name: Confirm binary was produced (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if (-not (Test-Path dist\BookEditor\BookEditor.exe)) {
-            Write-Error "Expected dist\BookEditor\BookEditor.exe was not found"
+          if (-not (Test-Path dist\Beckit\Beckit.exe)) {
+            Write-Error "Expected dist\Beckit\Beckit.exe was not found"
             exit 1
           }
 
       - name: Confirm binary was produced (macOS)
         if: runner.os == 'macOS'
-        run: test -f dist/BookEditor.app/Contents/MacOS/BookEditor
+        run: test -f dist/Beckit.app/Contents/MacOS/Beckit

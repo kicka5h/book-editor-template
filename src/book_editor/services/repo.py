@@ -85,7 +85,7 @@ def reorder_chapters(repo_path: str, new_order: list) -> None:
 
 
 def git_push(
-    repo_path: str, token: str, message: str = "Save from Book Editor"
+    repo_path: str, token: str, message: str = "Save from Beckit"
 ) -> None:
     """Commit changes under Chapters/ and push to origin, using token for HTTPS auth."""
     repo = Repo(repo_path)

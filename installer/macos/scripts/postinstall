@@ -79,5 +79,5 @@ else
     || echo "WARNING: git install failed; please run: brew install git"
 fi
 
-echo "Book Editor dependencies installed successfully."
+echo "Beckit dependencies installed successfully."
 exit 0

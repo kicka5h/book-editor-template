@@ -1,5 +1,5 @@
 ; ─────────────────────────────────────────────────────────────────────────────
-; BookEditor Windows Installer
+; Beckit Windows Installer
 ; Build with: makensis /DVERSION=X.Y.Z installer.nsi
 ; Requires: NSIS 3.x (no extra plugins needed)
 ; ─────────────────────────────────────────────────────────────────────────────
@@ -14,10 +14,10 @@ Unicode True
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
 
-Name "Book Editor ${VERSION}"
-OutFile "BookEditor-Windows-${VERSION}-installer.exe"
-InstallDir "$PROGRAMFILES64\BookEditor"
-InstallDirRegKey HKLM "Software\BookEditor" "InstallDir"
+Name "Beckit ${VERSION}"
+OutFile "Beckit-Windows-${VERSION}-installer.exe"
+InstallDir "$PROGRAMFILES64\Beckit"
+InstallDirRegKey HKLM "Software\Beckit" "InstallDir"
 RequestExecutionLevel admin
 SetCompressor /SOLID lzma
 
@@ -86,36 +86,36 @@ Section "Git" SecGit
   ${EndIf}
 SectionEnd
 
-Section "Book Editor" SecApp
+Section "Beckit" SecApp
   SectionIn RO   ; required — cannot be deselected
 
   ; Copy the entire onedir bundle produced by flet pack -D
   SetOutPath "$INSTDIR"
-  File /r "..\..\dist\BookEditor\*.*"
+  File /r "..\..\dist\Beckit\*.*"
 
   ; Start Menu shortcuts
-  CreateDirectory "$SMPROGRAMS\Book Editor"
-  CreateShortcut "$SMPROGRAMS\Book Editor\Book Editor.lnk" "$INSTDIR\BookEditor.exe"
-  CreateShortcut "$SMPROGRAMS\Book Editor\Uninstall.lnk"  "$INSTDIR\Uninstall.exe"
-  CreateShortcut "$DESKTOP\Book Editor.lnk"               "$INSTDIR\BookEditor.exe"
+  CreateDirectory "$SMPROGRAMS\Beckit"
+  CreateShortcut "$SMPROGRAMS\Beckit\Beckit.lnk" "$INSTDIR\Beckit.exe"
+  CreateShortcut "$SMPROGRAMS\Beckit\Uninstall.lnk"  "$INSTDIR\Uninstall.exe"
+  CreateShortcut "$DESKTOP\Beckit.lnk"               "$INSTDIR\Beckit.exe"
 
   ; Add/Remove Programs registry entries
-  WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\BookEditor" \
-                     "DisplayName"     "Book Editor"
-  WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\BookEditor" \
+  WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Beckit" \
+                     "DisplayName"     "Beckit"
+  WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Beckit" \
                      "UninstallString" "$INSTDIR\Uninstall.exe"
-  WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\BookEditor" \
+  WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Beckit" \
                      "InstallLocation" "$INSTDIR"
-  WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\BookEditor" \
-                     "Publisher"       "Book Editor contributors"
-  WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\BookEditor" \
+  WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Beckit" \
+                     "Publisher"       "Beckit contributors"
+  WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Beckit" \
                      "DisplayVersion"  "${VERSION}"
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\BookEditor" \
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Beckit" \
                      "NoModify"        1
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\BookEditor" \
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Beckit" \
                      "NoRepair"        1
 
-  WriteRegStr HKLM "Software\BookEditor" "InstallDir" "$INSTDIR"
+  WriteRegStr HKLM "Software\Beckit" "InstallDir" "$INSTDIR"
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 SectionEnd
@@ -126,11 +126,11 @@ Section "Uninstall"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir /r "$INSTDIR"
 
-  Delete "$SMPROGRAMS\Book Editor\Book Editor.lnk"
-  Delete "$SMPROGRAMS\Book Editor\Uninstall.lnk"
-  RMDir  "$SMPROGRAMS\Book Editor"
-  Delete "$DESKTOP\Book Editor.lnk"
+  Delete "$SMPROGRAMS\Beckit\Beckit.lnk"
+  Delete "$SMPROGRAMS\Beckit\Uninstall.lnk"
+  RMDir  "$SMPROGRAMS\Beckit"
+  Delete "$DESKTOP\Beckit.lnk"
 
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\BookEditor"
-  DeleteRegKey HKLM "Software\BookEditor"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Beckit"
+  DeleteRegKey HKLM "Software\Beckit"
 SectionEnd

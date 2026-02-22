@@ -3,16 +3,16 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "book-editor"
+name = "beckit"
 version = "2.0.0"
-description = "Lightweight cross-platform book editor with GitHub sync and chapter versioning"
+description = "Lightweight cross-platform book writing app with GitHub sync and chapter versioning"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"
 authors = [
-    { name = "Book Editor contributors" }
+    { name = "Beckit contributors" }
 ]
-keywords = ["book", "editor", "markdown", "github", "writing"]
+keywords = ["book", "writing", "markdown", "github", "editor"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Desktop Environment",
@@ -40,7 +40,7 @@ dev = [
 ]
 
 [project.scripts]
-book-editor = "book_editor.__main__:run_gui"
+beckit = "book_editor.__main__:run_gui"
 chapter-version = "book_editor.services.chapter_version:main"
 create-chapter = "book_editor.services.create_chapter:main"
 increment-chapters = "book_editor.services.increment_chapters:main"

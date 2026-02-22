@@ -1,4 +1,4 @@
-"""Entry point for the Book Editor desktop app (python -m book_editor or book-editor)."""
+"""Entry point for the Beckit desktop app (python -m book_editor or beckit)."""
 
 import flet as ft
 

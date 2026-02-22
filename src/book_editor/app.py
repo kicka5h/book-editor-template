@@ -1,4 +1,4 @@
-"""Flet UI for the Book Editor desktop app."""
+"""Flet UI for the Beckit desktop app."""
 
 import re
 import sys
@@ -61,7 +61,7 @@ _ERROR   = "#E05C5C"
 
 
 def _log(label: str, ex: BaseException) -> None:
-    print(f"\n[Book Editor] {label}: {ex}", file=sys.stderr)
+    print(f"\n[Beckit] {label}: {ex}", file=sys.stderr)
     traceback.print_exc(file=sys.stderr)
     print(file=sys.stderr)
 
@@ -141,7 +141,7 @@ def _build_theme() -> ft.Theme:
 # ── App ───────────────────────────────────────────────────────────────────────
 
 def main(page: ft.Page) -> None:
-    page.title = "Book Editor"
+    page.title = "Beckit"
     page.window.width = 1280
     page.window.height = 800
     page.window.min_width = 900
@@ -249,7 +249,7 @@ def main(page: ft.Page) -> None:
                             [
                                 ft.Text("✦", size=24, color=_ACCENT),
                                 ft.Container(height=16),
-                                _heading("Book Editor", size=24),
+                                _heading("Beckit", size=24),
                                 ft.Container(height=6),
                                 _body("Connect your GitHub account to store\nyour book in a repository."),
                                 ft.Container(height=32),
